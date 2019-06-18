@@ -7,12 +7,12 @@ namespace WPEFramework {
 namespace Exchange {
 
     struct IWebPAService : virtual public Core::IUnknown {
-        enum { ID = 0x0000006D };
+        enum { ID = ID_WEBPA };
         virtual uint32_t Configure(PluginHost::IShell*) = 0;
         virtual void Launch() = 0;
     };
     struct IWebPAClient : virtual public Core::IUnknown {
-        enum { ID = 0x0000006E };
+        enum { ID = ID_WEBPA_CLIENT };
         virtual uint32_t Configure(PluginHost::IShell*) = 0;
         virtual void Launch() = 0;
     };
