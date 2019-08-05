@@ -3,11 +3,10 @@ set(TEST_RUNNER_NAME "WPEFramework_test_core")
 add_executable(${TEST_RUNNER_NAME}
    ../IPTestAdministrator.cpp
    test_rpc.cpp
-<<<<<<< HEAD
    test_jsonparser.cpp
-=======
    test_time.cpp
->>>>>>> 546a80f... [Tests] Implemented testcases corresponding to Time.
+   test_tracing.cpp
+   Module.cpp
 #   test_sharedbuffer.cpp
 )
 
