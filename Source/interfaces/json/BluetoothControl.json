@@ -1,0 +1,237 @@
+{
+  "$schema": "interface.schema.json",
+  "jsonrpc": "2.0",
+  "info": {
+    "title": "BluetoothControl API",
+    "class": "BluetoothControl",
+    "description": "BluetoothControl JSON-RPC interface"
+  },
+  "common": {
+    "$ref": "common.json"
+  },
+  "properties": {
+    "scanning": {
+      "summary": "Tells if host is currently scanning for bluetooth devices",
+      "readonly": true,
+      "params": {
+        "type": "boolean"
+      }
+    },
+    "device": {
+      "summary": "Informations about devices found during scanning. If index is supplied, only information about that device is returned",
+      "readonly": true,
+      "params": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "address": {
+              "type": "string",
+              "description": "Device address",
+              "example": "11::22::33:44:55:66"
+            },
+            "name": {
+              "type": "string",
+              "description": "Device name",
+              "example": "iPhone8"
+            },
+            "lowenergy": {
+              "type": "boolean",
+              "description": "Describes if device is running in low energy mode (BLE)"
+            },
+            "connected": {
+              "type": "boolean",
+              "description": "Describes if device is connected to host"
+            },
+            "paired": {
+              "type": "boolean",
+              "description": "Describes if device is paired with host"
+            },
+            "reason": {
+              "type": "integer",
+              "description": "Code for reason of last disconnection"
+            }
+          }
+        }
+      },
+      "index": {
+        "name": "Device",
+        "example": "iPhone8"
+      },
+      "errors": [
+        {
+          "description": "Device not found",
+          "$ref": "#/common/errors/unknownkey"
+        }
+      ]
+    }
+  },
+  "methods": {
+    "pair": {
+      "summary": "Pair host with bluetooth device",
+      "description": "Use this function to request pairing with another bluetooth device. If device accepts pairing request, connection can be established",
+      "params": {
+        "type": "object",
+        "properties": {
+          "device": {
+            "type": "string",
+            "description": "Device name",
+            "example": "iPhone8"
+          }
+        }
+      },
+      "result": {
+        "$ref": "#/common/results/void"
+      },
+      "errors": [
+        {
+          "description": "Device not found",
+          "$ref": "#/common/errors/unknownkey"
+        },
+        {
+          "description": "Failed to pair",
+          "$ref": "#/common/errors/general"
+        },
+        {
+          "description": "Pairing aborted",
+          "$ref": "#/common/errors/asyncaborted"
+        }
+      ]
+    },
+    "connect": {
+      "summary": "Connect with bluetooth device",
+      "description": "Use this function to connecto to bluetooth device. Devices must be paired beforehand",
+      "params": {
+        "type": "object",
+        "properties": {
+          "device": {
+            "type": "string",
+            "description": "Device name",
+            "example": "iPhone8"
+          }
+        },
+        "required": [
+          "device"
+        ]
+      },
+      "result": {
+        "$ref": "#/common/results/void"
+      },
+      "errors": [
+        {
+          "description": "Device not found",
+          "$ref": "#/common/errors/unknownkey"
+        },
+        {
+          "description": "Failed to connect",
+          "$ref": "#/common/errors/general"
+        },
+        {
+          "description": "Connecting aborted",
+          "$ref": "#/common/errors/asyncaborted"
+        }
+      ]
+    },
+    "scan": {
+      "summary": "Scan environment for bluetooth devices",
+      "description": "Use this function to search for bluetooth devices that are advertising themselfs.",
+      "params": {
+        "type": "object",
+        "properties": {
+          "lowenergy": {
+            "type": "boolean",
+            "default": true,
+            "description": "Perform a scan in low-energy mode"
+          },
+          "limited": {
+            "type": "boolean",
+            "default": false
+          },
+          "passive": {
+            "type": "boolean",
+            "default": false,
+            "description": "Perform a passive scan if set to true. In passive mode host will only listen to advertisments. It won't send scan requests"
+          },
+          "duration": {
+            "type": "number",
+            "default": 10,
+            "description": "Scanning duration in seconds"
+          }
+        }
+      },
+      "result": {
+        "$ref": "#/common/results/void"
+      },
+      "errors": [
+        {
+          "description": "Scanning failed",
+          "$ref": "#/common/errors/general"
+        }
+      ]
+    },
+    "stopscan": {
+      "summary": "Connect with bluetooth device",
+      "description": "Cancels ongoing scanning",
+      "result": {
+        "$ref": "#/common/results/void"
+      }
+    },
+    "unpair": {
+      "summary": "Unpair host from a bluetooth device",
+      "description": "Use this function to invalidate pairing between host and selected device.",
+      "params": {
+        "type": "object",
+        "properties": {
+          "device": {
+            "type": "string",
+            "description": "Device name",
+            "example": "iPhone8"
+          }
+        },
+        "required": [
+          "device"
+        ]
+      },
+      "result": {
+        "$ref": "#/common/results/void"
+      },
+      "errors": [
+        {
+          "description": "Device not found",
+          "$ref": "#/common/errors/unknownkey"
+        }
+      ]
+    },
+    "disconnect": {
+      "summary": "Disconnects host from bluetooth device",
+      "description": "Use this function to disconnect from ",
+      "params": {
+        "type": "object",
+        "properties": {
+          "device": {
+            "type": "string",
+            "description": "Device name",
+            "example": "iPhone8"
+          },
+          "reason": {
+            "type": "number",
+            "description": "Code for reason od disconnection",
+            "default": 0
+          }
+        },
+        "required": [
+          "device"
+        ]
+      },
+      "result": {
+        "$ref": "#/common/results/void"
+      },
+      "errors": [
+        {
+          "description": "Device not found",
+          "$ref": "#/common/errors/unknownkey"
+        }
+      ]
+    }
+  }
+}
