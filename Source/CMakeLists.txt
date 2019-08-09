@@ -94,9 +94,9 @@ if(TRACING)
     add_subdirectory(tracing)
 endif()
 
-if(BLUETOOTH)
+#if(BLUETOOTH)
     add_subdirectory(bluetooth)
-endif()
+#endif()
 
 if(PROFILER)
     message(FATAL_ERROR "PROFILER option does not exist?")
