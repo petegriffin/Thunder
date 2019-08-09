@@ -7,6 +7,7 @@ add_executable(${TEST_RUNNER_NAME}
    test_time.cpp
    test_tracing.cpp
    Module.cpp
+   test_logging.cpp
 #   test_sharedbuffer.cpp
 )
 
