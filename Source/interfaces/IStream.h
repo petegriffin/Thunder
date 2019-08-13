@@ -40,6 +40,19 @@ namespace Exchange {
             Unknown
         };
 
+        enum StreamEvent {
+            NoSignal = 0,
+            LostSignal,
+            TunerLocked,
+            PlaybackStarted,
+            PlaybackPaused,
+            PlaybackStopped,
+            PlaybackCompleted,
+            HaveAudio,
+            HaveVideo,
+            InvalidEvent
+        };
+
         struct IControl : virtual public Core::IUnknown {
             enum { ID = ID_STREAM_CONTROL };
 
@@ -83,6 +96,7 @@ namespace Exchange {
 
             virtual void DRM(const uint32_t state) = 0;
             virtual void StateChange(const state newState) = 0;
+            virtual void OnStreamEvent(StreamEvent event) = 0;
         };
 
         virtual ~IStream() {}
