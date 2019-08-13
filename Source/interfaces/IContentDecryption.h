@@ -18,6 +18,7 @@ namespace Exchange {
         virtual RPC::IStringIterator* Systems() const = 0;
         virtual RPC::IStringIterator* Designators(const string& keySystem) const = 0;
         virtual RPC::IStringIterator* Sessions(const string& keySystem) const = 0;
+        virtual const std::string SessionInfo() = 0;
     };
 }
 }
