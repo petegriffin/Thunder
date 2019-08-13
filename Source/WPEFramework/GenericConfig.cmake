@@ -182,6 +182,13 @@ map()
 end()
 ans(PLUGIN_REMOTECONTROL_TRACING_UnknownKey)
 
+map()
+    kv(module "Plugin_EspialBrowser")
+    kv(category "Browser")
+    kv(enabled true)
+end()
+ans(WPEFRAMEWORK_PLUGIN_ESPIAL_TRACING_Browser)
+
 map_append(${CONFIG} tracing ${PLUGIN_WEBKITBROWSER_INFORMATION_TRACING})
 map_append(${CONFIG} tracing ${PLUGIN_WEBKITBROWSER_ACTIVITY_TRACING})
 map_append(${CONFIG} tracing ${PLUGIN_WEBKITBROWSER_HTML5Notification_TRACING})
@@ -196,6 +203,10 @@ if (PLUGIN_REMOTECONTROL_TRACING)
     map_append(${CONFIG} tracing ${PLUGIN_REMOTECONTROL_TRACING_KeyActivity})
     map_append(${CONFIG} tracing ${PLUGIN_REMOTECONTROL_TRACING_UnknownKey})
 endif(PLUGIN_REMOTECONTROL_TRACING)
+
+if (PLUGIN_ESPIAL_TRACING)
+    map_append(${CONFIG} tracing ${PLUGIN_ESPIAL_TRACING_Browser})
+endif(PLUGIN_ESPIAL_TRACING)
 
 map_append(${PLUGIN_CONTROLLER} configuration ${PLUGIN_CONTROLLER_CONFIGURATION})
 
