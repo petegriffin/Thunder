@@ -42,6 +42,31 @@ namespace Exchange {
             virtual uint32_t Unpair() = 0;
             virtual uint32_t Connect() = 0;
             virtual uint32_t Disconnect(const uint16_t reason) = 0;
+
+            enum BluetoothEvents
+            {
+                ePairingStarted,
+                ePairingFailed,
+                ePairingSuccess,
+                ePairingTimeout,
+                MAX_EVENT_ID
+            };
+
+            struct INotification : virtual public IUnknown {
+                //TODO Give an ID
+                enum {ID = 0x0000010a};
+
+                virtual ~INotification()
+                {
+                }
+
+                //Used to get events from the Bluetooth interface.
+                virtual void GetBluetoothEvents(const BluetoothEvents) = 0;
+            };
+
+            virtual void RegisterBluetoothEvents(IBluetooth::INotification* sink) = 0;
+            virtual void UnregisterBluetoothEvents(IBluetooth::INotification* sink) = 0;
+
         };
 
         struct INotification : virtual public Core::IUnknown {
