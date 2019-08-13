@@ -24,6 +24,7 @@ namespace PluginHost {
             DECRYPTION, // Decryption functionality is available.
             WEBSOURCE, // Content exposed via a local web server is available.
             STREAMING, // Content can be streamed.
+            IOREADY, // Contents of IOConnector plugin is established.
             END_LIST,
 
             // Also define a "negative" value.
@@ -38,7 +39,8 @@ namespace PluginHost {
             NOT_PROVISIONING, // Provisioning information is NOT available.
             NOT_DECRYPTION, // Decryption functionality is NOT available.
             NOT_WEBSOURCE, // Content exposed via a local web server is NOT available.
-            NOT_STREAMING // Content can NOT be streamed.
+            NOT_STREAMING, // Content can NOT be streamed.NOT_IOREADY // Contents of IOConnector plugin is NOT established.
+            NOT_IOREADY // Contents of IOConnector plugin is NOT established.
         };
 
         struct INotification

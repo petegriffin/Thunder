@@ -478,6 +478,16 @@ namespace PluginHost {
                 SYSLOG(Logging::Shutdown, (_T("EVENT: Streaming")));
                 break;
             }
+            case IOREADY: {
+                /* No information to set yet */
+                SYSLOG(Logging::Startup, (_T("EVENT: IOReady")));
+                break;
+            }
+            case NOT_IOREADY: {
+                /* No information to set yet */
+                SYSLOG(Logging::Shutdown, (_T("EVENT: IOReady")));
+                break;
+            }
             case SECURITY: {
                 PluginHost::ISubSystem::ISecurity* info = (information != nullptr ? information->QueryInterface<PluginHost::ISubSystem::ISecurity>() : nullptr);
 
@@ -580,6 +590,10 @@ namespace PluginHost {
                     break;
                 }
                 case WEBSOURCE: {
+                    /* No information to get yet */
+                    break;
+                }
+                case IOREADY: {
                     /* No information to get yet */
                     break;
                 }

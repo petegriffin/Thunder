@@ -40,6 +40,9 @@ ENUM_CONVERSION_BEGIN(PluginHost::ISubSystem::subsystem)
 
     { PluginHost::ISubSystem::subsystem::STREAMING, _TXT("Streaming") },
     { PluginHost::ISubSystem::subsystem::NOT_STREAMING, _TXT("!Streaming") },
+ 
+    { PluginHost::ISubSystem::subsystem::IOREADY, _TXT("IOReady") },
+    { PluginHost::ISubSystem::subsystem::NOT_IOREADY, _TXT("!IOReady") },
 
     ENUM_CONVERSION_END(PluginHost::ISubSystem::subsystem)
 
