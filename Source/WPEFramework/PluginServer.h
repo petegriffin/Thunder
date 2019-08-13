@@ -949,6 +949,10 @@ namespace PluginHost {
             }
 
         private:
+            std::string GetPluginFile();
+            void CreatePluginFile();
+            void DeletePluginFile(const reason why);
+
             inline PluginHost::IPlugin* CheckLibrary(const string& name, const TCHAR* className, const uint32_t version)
             {
                 PluginHost::IPlugin* newIF = nullptr;

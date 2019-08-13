@@ -299,6 +299,53 @@ namespace PluginHost
         return (&_administrator);
     }
 
+    std::string Server::Service::GetPluginFile()
+    {
+        std::string plugin_file;
+
+        plugin_file += string("/tmp/");
+        plugin_file += PluginHost::Service::Configuration().ClassName.Value();
+        plugin_file += string(".plugin");
+
+        return plugin_file;
+    }
+
+    void Server::Service::CreatePluginFile()
+    {
+        std::string plugin_file = GetPluginFile();
+
+        int fd = open(plugin_file.c_str(), O_CREAT | O_TRUNC | O_WRONLY, 0666);
+        if (fd == -1) {
+            TRACE_L1("Can't create plugin file '%s'", plugin_file.c_str());
+            return;
+        }
+        TRACE_L1("Created plugin file '%s'", plugin_file.c_str());
+
+        close(fd);
+    }
+
+    void Server::Service::DeletePluginFile(const reason why)
+    {
+        std::string plugin_file = GetPluginFile();
+
+        switch (why) {
+            case PluginHost::IShell::REQUESTED:
+            case PluginHost::IShell::AUTOMATIC:
+            case PluginHost::IShell::SHUTDOWN:
+            case PluginHost::IShell::CONDITIONS:
+                // Normal Termination => Delete plugin file.
+                break;
+            default:
+                // Abnormal Termination => Keep plugin file.
+                // Simulates the behavior of an abrupt crash (plugin file is leftover).
+                TRACE_L1("Skip Delete plugin file '%s'\n", plugin_file.c_str());
+                return;
+        }
+
+        unlink(plugin_file.c_str());
+        TRACE_L1("Deleted plugin file '%s'\n", plugin_file.c_str());
+    }
+
     // Methods to stop/start/update the service.
     uint32_t Server::Service::Activate(const PluginHost::IShell::reason why)
     {
@@ -394,6 +441,7 @@ namespace PluginHost
                     SYSLOG(Logging::Startup, (_T("Activated plugin [%s]:[%s]"), className.c_str(), callSign.c_str()));
                     Lock();
                     State(ACTIVATED);
+                    CreatePluginFile();
                     _administrator.StateChange(this);
 
                     #ifdef RESTFULL_API
@@ -470,6 +518,7 @@ namespace PluginHost
             TRACE(Activity, (Trace::Format(_T("Deactivate plugin [%s]:[%s]"), className.c_str(), callSign.c_str())));
 
             State(DEACTIVATED);
+            DeletePluginFile(why);
 
             _administrator.StateChange(this);
 
