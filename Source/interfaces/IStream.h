@@ -50,7 +50,13 @@ namespace Exchange {
             PlaybackCompleted,
             HaveAudio,
             HaveVideo,
-            InvalidEvent
+            InvalidEvent,
+            DescrambleSuccess,
+            DescrambleFailed,
+            CaProvisioningExportFailed,
+            CaSessionCreateFailed,
+            CaProvisioningParameterFailed,
+            CaProvisioningImportFailed
         };
 
         struct IControl : virtual public Core::IUnknown {
