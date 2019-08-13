@@ -44,6 +44,9 @@ ENUM_CONVERSION_BEGIN(PluginHost::ISubSystem::subsystem)
     { PluginHost::ISubSystem::subsystem::IOREADY, _TXT("IOReady") },
     { PluginHost::ISubSystem::subsystem::NOT_IOREADY, _TXT("!IOReady") },
 
+    { PluginHost::ISubSystem::subsystem::BTEVENTSREADY, _TXT("BTEventsReady") },
+    { PluginHost::ISubSystem::subsystem::NOT_BTEVENTSREADY, _TXT("!BTEventsReady") },
+
     ENUM_CONVERSION_END(PluginHost::ISubSystem::subsystem)
 
 } // namespace WPEFramework

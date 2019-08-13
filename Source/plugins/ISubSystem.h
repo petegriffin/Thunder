@@ -25,6 +25,7 @@ namespace PluginHost {
             WEBSOURCE, // Content exposed via a local web server is available.
             STREAMING, // Content can be streamed.
             IOREADY, // Contents of IOConnector plugin is established.
+            BTEVENTSREADY, // Plugin which implements IBluetooth interface is ready to send events.
             END_LIST,
 
             // Also define a "negative" value.
@@ -40,7 +41,8 @@ namespace PluginHost {
             NOT_DECRYPTION, // Decryption functionality is NOT available.
             NOT_WEBSOURCE, // Content exposed via a local web server is NOT available.
             NOT_STREAMING, // Content can NOT be streamed.NOT_IOREADY // Contents of IOConnector plugin is NOT established.
-            NOT_IOREADY // Contents of IOConnector plugin is NOT established.
+            NOT_IOREADY, // Contents of IOConnector plugin is NOT established.
+            NOT_BTEVENTSREADY // Plugin which implements IBluetooth interface isn't ready to send events.
         };
 
         struct INotification

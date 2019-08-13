@@ -492,6 +492,9 @@ namespace PluginHost {
                         printf("IOReady:    %s\n",
                             (status->IsActive(PluginHost::ISubSystem::IOREADY) == true) ? "Available"
                                                                                         : "Unavailable");
+                        printf("BTEventsReady:    %s\n",
+                            (status->IsActive(PluginHost::ISubSystem::BTEVENTSREADY) == true) ? "Available"
+                                                                                        : "Unavailable");
                         printf("------------------------------------------------------------\n");
                         if (status->IsActive(PluginHost::ISubSystem::INTERNET) == true) {
                             printf("Network Type: %s\n",
