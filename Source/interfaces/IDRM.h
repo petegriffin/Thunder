@@ -288,6 +288,8 @@ public:
         const uint32_t f_cbClearContentOpaque,
         uint8_t* f_pbClearContentOpaque)
         = 0;
+
+    virtual const std::string GetSessionInfo() const = 0;
 };
 
 // IMediaKeySession defines the MediaKeySession interface.
