@@ -344,7 +344,7 @@ namespace Core {
 
                     // The entry might have been removed from observing in the mean time...
                     if (entry != nullptr) {
-
+                        
                         // As we are the only ones that take out the resources from the list, we
                         // always make sure that the iterator is on the right spot/filedescriptor.
                         ASSERT(entry->Descriptor() == _descriptorArray[fd_index].fd);

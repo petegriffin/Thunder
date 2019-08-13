@@ -52,11 +52,19 @@
               "description": "Code for reason of last disconnection"
             }
           }
-        }
+        },
+        "required": [
+          "address",
+          "name",
+          "lowenergy",
+          "connected",
+          "paired",
+          "reason"
+        ]
       },
       "index": {
-        "name": "Device",
-        "example": "iPhone8"
+        "name": "Address",
+        "example": "11::22::33:44:55:66"
       },
       "errors": [
         {
@@ -73,12 +81,15 @@
       "params": {
         "type": "object",
         "properties": {
-          "device": {
+          "address": {
             "type": "string",
-            "description": "Device name",
-            "example": "iPhone8"
+            "description": "Address of the deveice to pair with",
+            "example": "11::22::33:44:55:66"
           }
-        }
+        },
+        "required": [
+          "address"
+        ]
       },
       "result": {
         "$ref": "#/common/results/void"
@@ -104,14 +115,14 @@
       "params": {
         "type": "object",
         "properties": {
-          "device": {
+          "address": {
             "type": "string",
-            "description": "Device name",
-            "example": "iPhone8"
+            "description": "Address of the deveice to pair with",
+            "example": "11::22::33:44:55:66"
           }
         },
         "required": [
-          "device"
+          "address"
         ]
       },
       "result": {
@@ -157,7 +168,8 @@
             "default": 10,
             "description": "Scanning duration in seconds"
           }
-        }
+        },
+        "required": []
       },
       "result": {
         "$ref": "#/common/results/void"
@@ -182,14 +194,14 @@
       "params": {
         "type": "object",
         "properties": {
-          "device": {
+          "address": {
             "type": "string",
-            "description": "Device name",
-            "example": "iPhone8"
+            "description": "Address of the deveice to pair with",
+            "example": "11::22::33:44:55:66"
           }
         },
         "required": [
-          "device"
+          "address"
         ]
       },
       "result": {
@@ -208,10 +220,10 @@
       "params": {
         "type": "object",
         "properties": {
-          "device": {
+          "address": {
             "type": "string",
-            "description": "Device name",
-            "example": "iPhone8"
+            "description": "Address of the deveice to pair with",
+            "example": "11::22::33:44:55:66"
           },
           "reason": {
             "type": "number",
@@ -220,7 +232,7 @@
           }
         },
         "required": [
-          "device"
+          "address"
         ]
       },
       "result": {
@@ -232,6 +244,9 @@
           "$ref": "#/common/errors/unknownkey"
         }
       ]
+    },
+    "remote": {
+
     }
   }
 }
