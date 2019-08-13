@@ -252,6 +252,14 @@ typedef struct {
     */
     void (*message_callback)(struct OpenCDMSession* session, void* userData, const char message[]);
     void (*message)(struct OpenCDMSession* session, const char message[]);
+
+    /**
+    * Called when a failure event is received from the DRM system
+    *
+    * \param statusCode integer showing type of error from the DRM session.
+    * \param failureMessage Text string, null terminated, from the DRM session.
+    */
+    void (*failure_event)   (struct OpenCDMSession* userData, const uint32_t statusCode, const char failureMessage[]);
 } OpenCDMSessionCallbacks;
 
 /**

@@ -79,6 +79,12 @@ protected:
         {
             _parent.OnKeyStatusUpdate(keyMessage);
         }
+        // Event fired when MediaKeySession encounter failure events.
+        virtual void OnEventFailure(
+            const uint32_t statusCode,
+            const std::string failureMessage) {
+            _parent.OnEventFailure(statusCode, failureMessage);
+        }
 
         BEGIN_INTERFACE_MAP(Sink)
         INTERFACE_ENTRY(OCDM::ISession::ICallback)
@@ -310,6 +316,15 @@ protected:
                 _callback->key_update(this, nullptr, 0);
             else
                 _callback->key_update_callback(this, _userData, nullptr, 0);
+        }
+    }
+    // Event fired when MediaKeySession encounter failure events.
+    void OnEventFailure(const uint32_t statusCode, const std::string failureMessage) {
+        if (_callback == nullptr) {
+            _state = static_cast<sessionState>(_state | SESSION_ERROR | SESSION_UPDATE);
+        }
+        else {
+            _callback->failure_event(this, statusCode, failureMessage.c_str());
         }
     }
 

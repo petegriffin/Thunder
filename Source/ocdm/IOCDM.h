@@ -57,6 +57,11 @@ struct ISession : virtual public WPEFramework::Core::IUnknown {
 
         // Event fired on key status update
         virtual void OnKeyStatusUpdate(const ISession::KeyStatus status) = 0;
+
+        // Event fired when MediaKeySession encounter failure events.
+        virtual void OnEventFailure(
+            const uint32_t statusCode,
+            const std::string failureMessage) = 0;
     };
 
     enum { ID = WPEFramework::RPC::ID_SESSION };

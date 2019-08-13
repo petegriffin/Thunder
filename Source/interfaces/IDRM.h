@@ -230,6 +230,9 @@ public:
 
     //Event fired on key status update
     virtual void OnKeyStatusUpdate(const char* keyMessage, const uint8_t* buffer, const uint8_t length) = 0;
+
+   // Event fired when MediaKeySession encounter failure events.
+    virtual void OnEventFailure(const uint32_t statusCode, const std::string failureMessage) = 0;
 };
 
 // IMediaKeySession defines the MediaKeySession interface.
