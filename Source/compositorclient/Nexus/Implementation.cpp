@@ -171,6 +171,8 @@ namespace Nexus {
 
            NEXUS_Error rc = NxClient_Join(&joinSettings);
            BDBG_ASSERT(!rc);
+
+           NxClient_UnregisterAcknowledgeStandby(NxClient_RegisterAcknowledgeStandby());
 #else
            NEXUS_Error rc = NEXUS_Platform_Join();
            BDBG_ASSERT(!rc);
