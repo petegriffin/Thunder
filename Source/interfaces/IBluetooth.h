@@ -43,8 +43,6 @@ namespace Exchange {
             virtual uint32_t Connect() = 0;
             virtual uint32_t Disconnect(const uint16_t reason) = 0;
 
-            virtual bool Reset(string, bool = false) = 0;
-
             enum BluetoothEvents
             {
                 ePairingStarted,
