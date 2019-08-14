@@ -410,9 +410,6 @@ namespace PluginHost {
         void Register(INotifier* callback, const uint32_t keyCode = ~0);
         void Unregister(const INotifier* callback, const uint32_t keyCode = ~0);
 
-        void Register(INotifier* callback);
-        void Unregister(const INotifier* callback);
-
         // -------------------------------------------------------------------------------------------------------
         // Whenever a key is pressed or released, let this object know, it will take the proper arrangements and timings
         // to announce this key event to the linux system. Repeat event is triggered by the watchdog implementation
@@ -507,7 +504,6 @@ namespace PluginHost {
         KeyMap* _defaultMap;
         NotifierList _notifierList;
         NotifierMap _notifierMap;
-        NotifierList _allKeysNotifierList;
         PostLookupMap _postLookupTable;
         string _keyTable;
         uint32_t _pressedCode;

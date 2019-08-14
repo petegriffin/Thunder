@@ -179,7 +179,6 @@ namespace PluginHost
         , _modifiers(0)
         , _defaultMap(nullptr)
         , _notifierMap()
-        , _allKeysNotifierList()
         , _pressedCode(0)
         , _repeatCounter(0)
         , _repeatLimit(0)
@@ -272,44 +271,6 @@ namespace PluginHost
 
             _lock.Unlock();
         }
-    }
-
-    void VirtualInput::Register(INotifier * callback)
-    {
-        // Register is only usefull with actuall callbacks !!
-        ASSERT (callback != nullptr);
-
-         _lock.Lock();
-
-         // Only register a callback once !!
-        ASSERT (std::find(_allKeysNotifierList.begin(), _allKeysNotifierList.end(), callback) == _allKeysNotifierList.end());
-
-         _allKeysNotifierList.push_back(callback);
-
-         _lock.Unlock();
-    }
-
-    void VirtualInput::Unregister(const INotifier * callback)
-    {
-        // Unregister is only useful with actual callbacks !!
-        ASSERT (callback != nullptr);
-
-         // Do not unregister something you did not register !!!
-        ASSERT (_allKeysNotifierList.empty() == false);
-
-         _lock.Lock();
-
-         NotifierList::iterator position = std::find(_allKeysNotifierList.begin(), _allKeysNotifierList.end(), callback);
-
-         if (position != _allKeysNotifierList.end()) {
-            _allKeysNotifierList.erase(position);
-        }
-        else {
-            // Do not unregister something you did not register !!!
-            ASSERT (false);
-        }
-
-         _lock.Unlock();
     }
 
     uint32_t VirtualInput::AxisEvent(const int16_t x, const int16_t y)
@@ -510,14 +471,6 @@ namespace PluginHost
         if (it != _notifierMap.end()) {
             const NotifierList& notifierList = it->second;
             for (INotifier* element : notifierList) {
-                element->Dispatch(type, code);
-            }
-        }
-
-        if (_allKeysNotifierList.empty() == false)
-        {
-            for (INotifier* element : _allKeysNotifierList)
-            {
                 element->Dispatch(type, code);
             }
         }
