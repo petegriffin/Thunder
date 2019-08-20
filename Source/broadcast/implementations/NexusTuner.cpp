@@ -24,8 +24,6 @@
 #endif
 
 #include <chrono>
-#include <iostream>
-#include <fstream>
 
 namespace WPEFramework {
 
@@ -833,38 +831,25 @@ namespace Broadcast {
                 info.StartTime = _startTime;
                 info.Duration = duration;
 
-                string strInfo;
-                info.ToString(strInfo);
-
-                // XXX: Save into sqllite db
-                string fname = path + id + ".info";
-                std::ofstream infoFile;
-                infoFile.open (fname);
-                if (infoFile.is_open()) {
-                    infoFile << strInfo;
+                string filename = path + id + ".info";
+                Core::File file(filename);
+                if (!file.Create() && !info.ToFile(file)) {
+                    TRACE_L1("%s: Failed to save %s\n", __FUNCTION__, filename.c_str());
                 }
-                infoFile.close();
-
+                file.Close();
                 return true;
             }
 
             bool Load(const std::string &id)
             {
-                string strInfo;
-                string fname = path + id + ".info";
-                std::ifstream infoFile;
-                infoFile.open(fname);
+                string filename = path + id + ".info";
+                Core::File file(filename);
+                file.Open();
 
-                if (infoFile.is_open()) {
-                    while (!infoFile.eof()) {
-                    infoFile >> strInfo;
-                    }
-                    infoFile.close();
-                } else {
-                    TRACE_L1("%s: Failed to open %s\n", __FUNCTION__, fname.c_str());
+                if (!info.FromFile(file)) {
+                    TRACE_L1("%s: Failed to load %s\n", __FUNCTION__, filename.c_str());
                 }
-
-                info.FromString(strInfo);
+                file.Close();
 
                 return true;
             }
@@ -918,6 +903,7 @@ namespace Broadcast {
                 }
             }
         private:
+        #if 0
             class Info : public Core::JSON::Container {
             private:
                 Info(const Info&);
@@ -948,10 +934,10 @@ namespace Broadcast {
                 Core::JSON::DecUInt32 StartTime;
                 Core::JSON::DecUInt32 Duration;
             };
-
+        #endif
         private:
             Tuner& _parent;
-            Info info;
+            RecordingInfo info;
             std::string path;
             NEXUS_FileRecordHandle file;
             NEXUS_RecpumpHandle recpump;

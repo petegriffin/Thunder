@@ -349,6 +349,57 @@ namespace Broadcast {
         ICallback* _callback;
     };
 
+    class RecordingInfo : public Core::JSON::Container {
+    private:
+        RecordingInfo& operator=(const RecordingInfo&);
+
+    public:
+        RecordingInfo()
+            : Core::JSON::Container()
+        {
+            Add(_T("recordingId"), &RecordingId);
+            Add(_T("videoType"), &VideoType);
+            Add(_T("videoPid"),  &VideoPid);
+            Add(_T("audioType"), &AudioType);
+            Add(_T("audioPid"),  &AudioPid);
+            Add(_T("startTime"), &StartTime);
+            Add(_T("duration"),  &Duration);
+        }
+
+        RecordingInfo(const RecordingInfo& copy)
+            : Core::JSON::Container()
+            , RecordingId(copy.RecordingId)
+            , VideoType(copy.VideoType)
+            , VideoPid(copy.VideoPid)
+            , AudioType(copy.AudioType)
+            , AudioPid(copy.AudioPid)
+            , StartTime(copy.StartTime)
+            , Duration(copy.Duration)
+        {
+            Add(_T("recordingId"), &RecordingId);
+            Add(_T("videoType"), &VideoType);
+            Add(_T("videoPid"),  &VideoPid);
+            Add(_T("audioType"), &AudioType);
+            Add(_T("audioPid"),  &AudioPid);
+            Add(_T("startTime"), &StartTime);
+            Add(_T("duration"),  &Duration);
+        }
+
+        ~RecordingInfo()
+        {
+        }
+
+    public:
+        Core::JSON::String RecordingId;
+        Core::JSON::DecUInt16 VideoType;
+        Core::JSON::DecUInt16 VideoPid;
+        Core::JSON::DecUInt16 AudioType;
+        Core::JSON::DecUInt16 AudioPid;
+        Core::JSON::DecUInt32 StartTime;
+        Core::JSON::DecUInt32 Duration;
+    };
+
+
 } // namespace Broadcast
 } // namespace WPEFramework
 

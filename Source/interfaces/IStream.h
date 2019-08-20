@@ -107,7 +107,15 @@ namespace Exchange {
         virtual ~IPlayer() {}
         virtual IStream* CreateStream(const IStream::streamtype streamType) = 0;
         virtual uint32_t Configure(PluginHost::IShell* service) = 0;
+
         virtual string Recordings() = 0;
+    };
+
+    struct IRecorder : virtual public Core::IUnknown {
+        enum { ID = ID_RECORDER };
+
+        virtual uint32_t Start() = 0;
+        virtual uint32_t Stop() = 0;
     };
 
 } // namespace Exchange

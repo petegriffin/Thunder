@@ -89,6 +89,7 @@ namespace Exchange {
         ID_STREAM_CONTROL_CALLBACK,
         ID_STREAM_CALLBACK,
         ID_PLAYER,
+        ID_RECORDER,
 
         ID_DSGCC_CLIENT,
         ID_DSGCC_CLIENT_NOTIFICATION,
