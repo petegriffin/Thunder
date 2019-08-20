@@ -27,7 +27,7 @@ set(PLATFORM "PC_UNIX" CACHE STRING
         "Defines on what platform the application will run")
 
 option(INSTALL_LOCALLY "Install this project locally" OFF)
-option(BUILD_TESTS "Build tests (requires gtest)" OFF)
+option(BUILD_TESTS "Build tests (requires gtest)" ON)
 
 set(NAMESPACE ${PROJECT_NAME} CACHE STRING "Namespace of the project")
 

@@ -1176,6 +1176,18 @@ namespace Core {
                 }
             }
 
+        private:
+            inline void AddEscapedCharacter(char* stream, char escapeSymbol, uint16_t& index, const uint16_t maxLength) const {
+                stream[index++] = '\\';
+
+                if (maxLength - index >= 1)
+                    stream[index++] = escapeSymbol;
+            }
+
+            inline void AddHexCharacter(char* stream, char character, uint16_t& index, const uint16_t maxLength) const {
+                index += snprintf(&(stream[index]), maxLength - index, "\\u%04x", static_cast<uint8_t>(character));
+            }
+
         protected:
             inline bool MatchLastCharacter(const string& str, char ch) const
             {
@@ -1210,15 +1222,31 @@ namespace Core {
                         while ((result < maxLength) && (length > 0)) {
 
                             // See where we are and add...
-                            if ((*source != '\"') || (_unaccountedCount == 1)) {
-                                _unaccountedCount = 0;
-                                stream[result++] = *source++;
-                                length--;
+                            // TODO: 
+                            if ((*source) == '\\') {
+                                AddEscapedCharacter(stream, '\\', result, maxLength);
+                            } else if ((*source) == '\b') {
+                                AddEscapedCharacter(stream, 'b', result, maxLength);
+                            } else if ((*source) == '\f') {
+                                AddEscapedCharacter(stream, 'f', result, maxLength);
+                            } else if ((*source) == '\r') {
+                                AddEscapedCharacter(stream, 'r', result, maxLength);
+                            } else if ((*source) == '\t') {
+                                AddEscapedCharacter(stream, 't', result, maxLength);
+                            } else if ((*source) == '\n') {
+                                AddEscapedCharacter(stream, 'n', result, maxLength);
+                            } else if ((*source) == '\"') {
+                                AddEscapedCharacter(stream, '\"', result, maxLength);
+                            } else if ((*source) == '/') {
+                                AddEscapedCharacter(stream, '/', result, maxLength);
+                            } else if (isprint(*source) == false) {
+                                AddHexCharacter(stream, *source, result, maxLength);
                             } else {
-                                // this we need to escape...
-                                stream[result++] = '\\';
-                                _unaccountedCount = 1;
+                                stream[result++] = *source;
                             }
+
+                            source++;
+                            length--;
                         }
                     }
 
@@ -1308,16 +1336,20 @@ namespace Core {
 
                     if (finished == false) {
                         if ((escapedSequence == true)) {
-                            if (current != '"' && current != 'b' && current != 'n' && current != 't' && current != 'u' && current != '/' && current != '\\') {
+                            if (current != '"' && current != 'r' && current != 'f' && current != 'b' && current != 'n' && current != 't' && current != 'u' && current != '/' && current != '\\') {
                                 finished = true;
                                 error = Error{"Invalid escape sequence \"\\" + std::string(1, current) + "\"."};
                                 ++result;
                                 break;
+                            } else {
+                                _value[_value.length() - 1] = current;
+                                _unaccountedCount++;
                             }
+                        } else {
+                            _value += current;
                         }
-                        // Write the amount we possibly can..
-                        _value += current;
 
+                        // Write the amount we possibly can..
                         escapedSequence = (current == '\\');
 
                         // Move on to the next position
