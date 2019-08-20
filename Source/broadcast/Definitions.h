@@ -309,6 +309,12 @@ namespace Broadcast {
         virtual uint32_t Detach(const uint8_t index) = 0;
 
 
+        virtual uint32_t StartRecord() = 0;
+        virtual uint32_t StopRecord() = 0;
+        virtual uint32_t StartPlay(const string& id) = 0;
+        virtual uint32_t StopPlay() = 0;
+
+
         // If you have an ITuner interface, you can subscribe to state changes of this Tuner interface
         // This will only be one instance, by design, to avoid the overhead of maintining a list and
         // thus spending more resources. The idea is that the object holding the ITuner interface to
