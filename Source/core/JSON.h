@@ -1187,6 +1187,62 @@ namespace Core {
                 }
             }
 
+      private:
+           struct __attribute__ ((packed)) JsonSerializationState {
+                char sendingSymbol: 8;
+                bool isSendingEscaped: 1;
+                uint padding : 23;
+           };
+
+            inline void WriteEscapedCharacter(char* outputStream, char character, uint16_t& index) const
+            {
+                // Use _unaccountedCount memory for greater good :)
+                JsonSerializationState* state = reinterpret_cast<JsonSerializationState*>(&_unaccountedCount);
+
+                state->sendingSymbol = character;
+                state->isSendingEscaped = true; 
+
+                outputStream[index++] = '\\';
+            }
+
+            inline void AddJsonStringCharacter(char* outputStream, char character, uint16_t& index) const
+            {
+                // Use _unaccountedCount memory for greater good :)
+                JsonSerializationState* state = reinterpret_cast<JsonSerializationState*>(&_unaccountedCount);
+
+                if (state->isSendingEscaped) {
+                    outputStream[index++] = state->sendingSymbol;
+                    state->sendingSymbol = 0;
+                    state->isSendingEscaped = false; 
+                } else {
+                    switch (character) {
+                    case '\\':
+                        WriteEscapedCharacter(outputStream, '\\', index);
+                        break;
+                    case '\b':
+                        WriteEscapedCharacter(outputStream, 'b', index);
+                        break;
+                    case '\f':
+                        WriteEscapedCharacter(outputStream, 'f', index);
+                        break;
+                    case '\r':
+                        WriteEscapedCharacter(outputStream, 'r', index);
+                        break;
+                    case '\t':
+                        WriteEscapedCharacter(outputStream, 't', index);
+                        break;
+                    case '\n':
+                        WriteEscapedCharacter(outputStream, 'n', index);
+                        break;
+                    case '\"':
+                        WriteEscapedCharacter(outputStream, '\"', index);
+                        break;
+                    default:
+                        outputStream[index++] = character;
+                    }
+                }
+            }
+
         protected:
             inline bool MatchLastCharacter(const string& str, char ch) const
             {
@@ -1197,6 +1253,8 @@ namespace Core {
             uint16_t Serialize(char stream[], const uint16_t maxLength, uint16_t& offset) const override
             {
                 bool quoted = IsQuoted();
+                // Use _unaccountedCount memory for greater good :)
+                auto state = reinterpret_cast<JsonSerializationState*>(&_unaccountedCount);
                 uint16_t result = 0;
 
                 ASSERT(maxLength > 0);
@@ -1219,16 +1277,11 @@ namespace Core {
                         offset += length;
 
                         while ((result < maxLength) && (length > 0)) {
+                            AddJsonStringCharacter(stream, (*source), result);
 
-                            // See where we are and add...
-                            if ((*source != '\"') || (_unaccountedCount == 1)) {
-                                _unaccountedCount = 0;
-                                stream[result++] = *source++;
+                            if (state->isSendingEscaped != true) {
+                                source++;
                                 length--;
-                            } else {
-                                // this we need to escape...
-                                stream[result++] = '\\';
-                                _unaccountedCount = 1;
                             }
                         }
                     }
