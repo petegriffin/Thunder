@@ -74,7 +74,7 @@ int main(int argc, const char* argv[])
         } break;
 
         case 'C': {
-            Broadcast::ITuner* newTuner = Broadcast::ITuner::Create(information);
+            Broadcast::ITuner* newTuner = Broadcast::ITuner::Create(information, false);
             printf("%s:%d %s Create tuner\n", __FILE__, __LINE__, __FUNCTION__);
 
             if (newTuner != nullptr) {
