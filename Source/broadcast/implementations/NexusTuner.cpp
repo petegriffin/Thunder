@@ -198,6 +198,7 @@ namespace Broadcast {
             {
                 _pid = pid;
                 _streamType = stream;
+                TRACE_L1("%s: _pidChannel=%p _decoder=%p pid=%d \n", __FUNCTION__, _pidChannel, _decoder, _pid);
                 return (Core::ERROR_NONE);
             }
             uint32_t Close()
@@ -210,6 +211,7 @@ namespace Broadcast {
             {
                 uint32_t result = Core::ERROR_NONE;
 
+                    TRACE_L1("%s: _pidChannel=%p _decoder=%p pid=%d \n", __FUNCTION__, _pidChannel, _decoder, _pid);
                 if (_pid) {
 
                     result = Core::ERROR_UNAVAILABLE;
@@ -733,8 +735,9 @@ namespace Broadcast {
             Recorder& operator=(const Audio&) = delete;
 
         public:
-            Recorder(Tuner& parent)
+            Recorder(Tuner& parent, int index)
                 : _parent(parent)
+                , _index(index)
                 , path("/recordings/")
                 , filePlay(nullptr)
             {
@@ -865,21 +868,20 @@ namespace Broadcast {
                 TRACE_L1("%s: Opening %s\n", __FUNCTION__, filename.c_str());
                 filePlay = NEXUS_FilePlay_OpenPosix(filename.c_str(), NULL);
 
-                int decoderIndex = 1;   // XXX: for now hard code
-                _parent._videoDecoder.Open(info.VideoPid.Value(), info.VideoType.Value(), decoderIndex);
+                _parent._videoDecoder.Open(info.VideoPid.Value(), info.VideoType.Value(), _index);
                 _parent._audioDecoder.Open(info.AudioPid.Value(), info.AudioType.Value());
 
 
                 NxClient_ConnectSettings connectSettings;
                 NxClient_GetDefaultConnectSettings(&connectSettings);
 
-                connectSettings.simpleVideoDecoder[0].id = NexusInformation::Instance().VideoDecoder(decoderIndex);
+                connectSettings.simpleVideoDecoder[0].id = NexusInformation::Instance().VideoDecoder(_index);
                 connectSettings.simpleAudioDecoder.id = NexusInformation::Instance().AudioDecoder();
 
                 rc = NxClient_Connect(&connectSettings, &_connectId);
 
                 if ( rc == 0 ) {
-                    _parent._videoDecoder.Attach(decoderIndex);
+                    _parent._videoDecoder.Attach(_index);
                     _parent._audioDecoder.Attach();
 
                     NEXUS_Playback_Start(_parent.Playback(), filePlay, NULL);
@@ -903,40 +905,8 @@ namespace Broadcast {
                 }
             }
         private:
-        #if 0
-            class Info : public Core::JSON::Container {
-            private:
-                Info(const Info&);
-                Info& operator=(const Info&);
-
-            public:
-                Info()
-                    : Core::JSON::Container()
-                {
-                    Add(_T("recordingId"), &RecordingId);
-                    Add(_T("videoType"), &VideoType);
-                    Add(_T("videoPid"),  &VideoPid);
-                    Add(_T("audioType"), &AudioType);
-                    Add(_T("audioPid"),  &AudioPid);
-                    Add(_T("startTime"), &StartTime);
-                    Add(_T("duration"),  &Duration);
-                }
-                ~Info()
-                {
-                }
-
-            public:
-                Core::JSON::String RecordingId;
-                Core::JSON::DecUInt16 VideoType;
-                Core::JSON::DecUInt16 VideoPid;
-                Core::JSON::DecUInt16 AudioType;
-                Core::JSON::DecUInt16 AudioPid;
-                Core::JSON::DecUInt32 StartTime;
-                Core::JSON::DecUInt32 Duration;
-            };
-        #endif
-        private:
             Tuner& _parent;
+            uint8_t _index;
             RecordingInfo info;
             std::string path;
             NEXUS_FileRecordHandle file;
@@ -950,7 +920,7 @@ namespace Broadcast {
             std::time_t _endTime;
         };
 
-        Tuner(uint8_t index)
+        Tuner(uint8_t index, bool playback)
             : _index(index)
             , _state(IDLE)
             , _lockDuration(0)
@@ -959,14 +929,14 @@ namespace Broadcast {
             , _videoDecoder(*this)
             , _audioDecoder(*this)
             , _collector(*this)
-            , _recorder(*this)
+            , _recorder(*this, index)
             , _programId(~0)
             , _sections()
             , _callback(nullptr)
         {
             _stcChannel = NEXUS_SimpleStcChannel_Create(nullptr);
 
-            if (_index) {   // XXX: for now >0 is playback
+            if (playback) {
                 NEXUS_Error rc;
                 NEXUS_PlaypumpOpenSettings playpumpOpenSettings;
                 NEXUS_PlaybackSettings playbackSettings;
@@ -983,6 +953,9 @@ namespace Broadcast {
                 playbackSettings.beginningOfStreamAction = NEXUS_PlaybackLoopMode_ePlay;
                 playbackSettings.endOfStreamAction = NEXUS_PlaybackLoopMode_ePause;
                 rc = NEXUS_Playback_SetSettings(_playback, &playbackSettings);
+                if (rc) {
+                    TRACE_L1("Failed to set playback settings rc=%d", rc);
+                }
             } else {
                 NEXUS_FrontendAcquireSettings frontendAcquireSettings;
                 NEXUS_Frontend_GetDefaultAcquireSettings(&frontendAcquireSettings);
@@ -1059,12 +1032,12 @@ namespace Broadcast {
             _callback = nullptr;
         }
 
-        static ITuner* Create(const string& info)
+        static ITuner* Create(const string& info, const bool isPlayback)
         {
             Tuner* result = nullptr;
             uint8_t index = Core::NumberType<uint8_t>(Core::TextFragment(info)).Value();
 
-            result = new Tuner(index);
+            result = new Tuner(index, isPlayback);
 
             if ((result != nullptr) && (result->IsValid() == false)) {
                 delete result;
@@ -1539,9 +1512,9 @@ namespace Broadcast {
     }
 
     // Accessor to create a tuner.
-    /* static */ ITuner* ITuner::Create(const string& info)
+    /* static */ ITuner* ITuner::Create(const string& info, const bool isPlayback)
     {
-        return (Tuner::Create(info));
+        return (Tuner::Create(info, isPlayback));
     }
 
 } // namespace Broadcast

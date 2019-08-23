@@ -259,7 +259,7 @@ namespace Broadcast {
         static uint32_t Deinitialize();
 
         // Accessor to create a tuner.
-        static ITuner* Create(const string& info);
+        static ITuner* Create(const string& info, const bool isPlayback);
 
         // Accessor to metadata on the tuners.
         static void Register(INotification* notify);
