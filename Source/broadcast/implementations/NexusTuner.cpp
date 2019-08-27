@@ -198,7 +198,7 @@ namespace Broadcast {
             {
                 _pid = pid;
                 _streamType = stream;
-                TRACE_L1("%s: _pidChannel=%p _decoder=%p pid=%d \n", __FUNCTION__, _pidChannel, _decoder, _pid);
+                TRACE_L1("%s: _pidChannel=%p _decoder=%p pid=%d", __FUNCTION__, _pidChannel, _decoder, _pid);
                 return (Core::ERROR_NONE);
             }
             uint32_t Close()
@@ -211,7 +211,7 @@ namespace Broadcast {
             {
                 uint32_t result = Core::ERROR_NONE;
 
-                    TRACE_L1("%s: _pidChannel=%p _decoder=%p pid=%d \n", __FUNCTION__, _pidChannel, _decoder, _pid);
+                TRACE_L1("%s: _pidChannel=%p _decoder=%p pid=%d", __FUNCTION__, _pidChannel, _decoder, _pid);
                 if (_pid) {
 
                     result = Core::ERROR_UNAVAILABLE;
@@ -229,6 +229,13 @@ namespace Broadcast {
                         _pidChannel = NEXUS_Playback_OpenPidChannel(_parent.Playback(), _pid, &playbackPidSettings);
                     } else {
                         _pidChannel = NEXUS_PidChannel_Open(_parent.ParserBand(), _pid, nullptr);
+
+                        NEXUS_SimpleStcChannelSettings& settings(_parent.Settings());
+                        if (settings.modeSettings.pcr.pidChannel == nullptr) {
+                            // If the PCR pid is not set, this is an Audio only stream, do the settings on the stcChannel !!
+                            int rc = NEXUS_SimpleStcChannel_SetSettings(_parent.Channel(), &settings);
+                            BDBG_ASSERT(!rc);
+                        }
                     }
 
                     if (_pidChannel != nullptr) {
@@ -239,19 +246,10 @@ namespace Broadcast {
                         audioProgram.primary.pidChannel = _pidChannel;
                         audioProgram.primary.codec = Codec(_streamType);
 
-                        NEXUS_SimpleStcChannelSettings& settings(_parent.Settings());
-
-                        if (settings.modeSettings.pcr.pidChannel == nullptr) {
-                            // If the PCR pid is not set, this is an Audio only stream, do the settings on the stcChannel !!
-//                                int rc = NEXUS_SimpleStcChannel_SetSettings(_parent.Channel(), &settings);
-//                                BDBG_ASSERT(!rc);
-                            // XXX: A/V stutters ???
-                        }
-
                         NEXUS_SimpleAudioDecoder_SetStcChannel(_decoder, _parent.Channel());
 
                         NEXUS_SimpleAudioDecoder_Start(_decoder, &audioProgram);
-                        TRACE_L1("%s: _pidChannel=%p _decoder=%p pid=%d codec=%d\n", __FUNCTION__, _pidChannel, _decoder, _pid, audioProgram.primary.codec);
+                        TRACE_L1("%s: _pidChannel=%p _decoder=%p pid=%d codec=%d", __FUNCTION__, _pidChannel, _decoder, _pid, audioProgram.primary.codec);
 
                         result = Core::ERROR_NONE;
                     }
@@ -374,7 +372,7 @@ namespace Broadcast {
                         _pidChannel = NEXUS_PidChannel_Open(_parent.ParserBand(), _pid, nullptr);
                     }
 
-                    TRACE_L1("%s: _pidChannel=%p _decoder=%p pid=%d codec=%d\n", __FUNCTION__, _pidChannel, _decoder, _pid, codec);
+                    TRACE_L1("%s: _pidChannel=%p _decoder=%p pid=%d codec=%d", __FUNCTION__, _pidChannel, _decoder, _pid, codec);
 
                     if (_pidChannel != nullptr) {
                         if (!_parent.Playback()) {
@@ -403,7 +401,7 @@ namespace Broadcast {
                         rc = NEXUS_SimpleVideoDecoder_StartPrimer(_decoder, &program);
                         result = (rc == 0 ? Core::ERROR_NONE : Core::ERROR_OPENING_FAILED);
                         if ( rc ) {
-                            TRACE_L1("Failed start video decode rc=%d codec=%d\n", rc, codec);
+                            TRACE_L1("Failed start video decode rc=%d codec=%d", rc, codec);
                         }
                     }
                 } else {
@@ -626,7 +624,7 @@ namespace Broadcast {
                             }
                             _adminLock.Unlock();
                         } else {
-                            TRACE_L1("Invalid frame (%d - %d)!!!!\n", (sectionSize - handled), sectionLength);
+                            TRACE_L1("Invalid frame (%d - %d)!!!!", (sectionSize - handled), sectionLength);
                             DumpData(&(data[handled]), sectionSize - handled);
                         }
 
@@ -738,8 +736,9 @@ namespace Broadcast {
             Recorder(Tuner& parent, int index)
                 : _parent(parent)
                 , _index(index)
-                , path("/recordings/")
-                , filePlay(nullptr)
+                , _path("/recordings/")
+                , _filePlay(nullptr)
+                , _endTime(0)
             {
             }
             ~Recorder()
@@ -752,8 +751,8 @@ namespace Broadcast {
                 NEXUS_RecordPidChannelSettings pidSettings;
                 NEXUS_RecordSettings recordSettings;
                 RecordingId = std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
-                std::string filename  = path + RecordingId + ".mpg";
-                std::string indexname = path + RecordingId + ".nav";
+                std::string filename  = _path + RecordingId + ".mpg";
+                std::string indexname = _path + RecordingId + ".nav";
 
                 recpump = NEXUS_Recpump_Open(0, NULL);
 
@@ -763,11 +762,11 @@ namespace Broadcast {
                 recordSettings.recpump = recpump;
                 NEXUS_Record_SetSettings(record, &recordSettings);
 
-                TRACE_L1("%s: Opening %s\n", __FUNCTION__, filename.c_str());
+                TRACE_L1("%s: Opening %s", __FUNCTION__, filename.c_str());
                 #if 1
                 file = NEXUS_FileRecord_OpenPosix(filename.c_str(), indexname.c_str());
                 #else
-\                NEXUS_ChunkedFileRecordOpenSettings chunkedFileRecordOpenSettings;
+                NEXUS_ChunkedFileRecordOpenSettings chunkedFileRecordOpenSettings;
                 NEXUS_ChunkedFileRecord_GetDefaultOpenSettings(&chunkedFileRecordOpenSettings);
                 chunkedFileRecordOpenSettings.chunkSize = 16*1024*1024;
                 /* NOTE: if chunkTemplate contains a subdir, app is responsible to mkdir first. */
@@ -800,13 +799,16 @@ namespace Broadcast {
                 rc = NEXUS_Record_AddPidChannel(record, AudeoPidChannel, NULL);
                 if ( rc == 0) {
                     rc = NEXUS_Record_Start(record, file);
-                    if ( rc ) {
-                        TRACE_L1("NEXUS_Record_Start Failed rc=%d\n", rc);
+                    if ( rc ==0 ) {
+                        TRACE_L1("Recording (%s) Started", RecordingId.c_str());
+                    } else {
+                        TRACE_L1("NEXUS_Record_Start Failed rc=%d", rc);
                     }
                 } else {
-                    TRACE_L1("NEXUS_Record_AddPidChannel Failed rc=%d\n", rc);
+                    TRACE_L1("NEXUS_Record_AddPidChannel Failed rc=%d", rc);
                 }
                 _startTime = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+                Save(RecordingId);
             }
 
             void Stop()
@@ -834,10 +836,14 @@ namespace Broadcast {
                 info.StartTime = _startTime;
                 info.Duration = duration;
 
-                string filename = path + id + ".info";
+                string filename = _path + id + ".info";
                 Core::File file(filename);
-                if (!file.Create() && !info.ToFile(file)) {
-                    TRACE_L1("%s: Failed to save %s\n", __FUNCTION__, filename.c_str());
+
+                file.Create();
+                if (!info.ToFile(file)) {
+                    TRACE_L1("%s: Failed to save %s", __FUNCTION__, filename.c_str());
+                } else {
+                    TRACE_L1("%s Saving %s", __FUNCTION__, filename.c_str());
                 }
                 file.Close();
                 return true;
@@ -845,12 +851,12 @@ namespace Broadcast {
 
             bool Load(const std::string &id)
             {
-                string filename = path + id + ".info";
+                string filename = _path + id + ".info";
                 Core::File file(filename);
                 file.Open();
 
                 if (!info.FromFile(file)) {
-                    TRACE_L1("%s: Failed to load %s\n", __FUNCTION__, filename.c_str());
+                    TRACE_L1("%s: Failed to load %s", __FUNCTION__, filename.c_str());
                 }
                 file.Close();
 
@@ -861,12 +867,12 @@ namespace Broadcast {
             {
                 NEXUS_Error rc;
 
-                std::string filename  = path + id + ".mpg";
-                std::string indexname = path + id + ".nav";
+                std::string filename  = _path + id + ".mpg";
+                std::string indexname = _path + id + ".nav";
 
                 Load(id);
-                TRACE_L1("%s: Opening %s\n", __FUNCTION__, filename.c_str());
-                filePlay = NEXUS_FilePlay_OpenPosix(filename.c_str(), NULL);
+                TRACE_L1("%s: Opening %s", __FUNCTION__, filename.c_str());
+                _filePlay = NEXUS_FilePlay_OpenPosix(filename.c_str(), indexname.c_str());
 
                 _parent._videoDecoder.Open(info.VideoPid.Value(), info.VideoType.Value(), _index);
                 _parent._audioDecoder.Open(info.AudioPid.Value(), info.AudioType.Value());
@@ -884,36 +890,36 @@ namespace Broadcast {
                     _parent._videoDecoder.Attach(_index);
                     _parent._audioDecoder.Attach();
 
-                    NEXUS_Playback_Start(_parent.Playback(), filePlay, NULL);
+                    NEXUS_Playback_Start(_parent.Playback(), _filePlay, NULL);
                 } else {
-                    printf("%s: NxClient_Connect failed. rc=%d\n", __FUNCTION__, rc);
+                    TRACE_L1("%s: NxClient_Connect failed. rc=%d", __FUNCTION__, rc);
                 }
             }
 
             void PlayStop()
             {
-                if (filePlay) {
+                if (_filePlay) {
                     NEXUS_Playback_Stop(_parent.Playback());
-                    NEXUS_FilePlay_Close(filePlay);
+                    NEXUS_FilePlay_Close(_filePlay);
 
                     NxClient_Disconnect(_connectId);
 
                     _parent._videoDecoder.Close();
                     _parent._audioDecoder.Detach();     // relased in detach not close ???
 
-                    filePlay = nullptr;
+                    _filePlay = nullptr;
                 }
             }
         private:
             Tuner& _parent;
             uint8_t _index;
             RecordingInfo info;
-            std::string path;
+            std::string _path;
             NEXUS_FileRecordHandle file;
             NEXUS_RecpumpHandle recpump;
             NEXUS_RecordHandle record;
 
-            NEXUS_FilePlayHandle filePlay;
+            NEXUS_FilePlayHandle _filePlay;
             uint32_t _connectId;
             std::string RecordingId;
             std::time_t _startTime;
@@ -925,6 +931,7 @@ namespace Broadcast {
             , _state(IDLE)
             , _lockDuration(0)
             , _parserBand(0)
+            , _playback(nullptr)
             , _pidChannel(nullptr)
             , _videoDecoder(*this)
             , _audioDecoder(*this)
@@ -1005,10 +1012,9 @@ namespace Broadcast {
                     _stcSettings.mode = NEXUS_StcChannelMode_ePcr;
                     _stcSettings.modeSettings.pcr.offsetThreshold = 0xFF;
                     _stcSettings.modeSettings.pcr.pidChannel = nullptr;
-
-                    _callback = TunerAdministrator::Instance().Announce(this);
                 }
             }
+            _callback = TunerAdministrator::Instance().Announce(this);
          }
 
     public:
@@ -1259,14 +1265,16 @@ namespace Broadcast {
             connectSettings.simpleAudioDecoder.id = NexusInformation::Instance().AudioDecoder();
 
             int rc = NxClient_Connect(&connectSettings, &_connectId);
-            BDBG_ASSERT(!rc);
+//            BDBG_ASSERT(!rc);
+            if (rc == 0) {
+                _videoDecoder.Attach(index);
+                _audioDecoder.Attach();
 
-            _videoDecoder.Attach(index);
-            _audioDecoder.Attach();
-
-            _state = STREAMING;
-            _callback->StateChange(this);
-
+                _state = STREAMING;
+                _callback->StateChange(this);
+            } else {
+                TRACE_L1("NxClient_Connect Failed! rc=%d", rc);
+            }
             return (Core::ERROR_NONE);
         }
 
@@ -1283,6 +1291,31 @@ namespace Broadcast {
             return (Core::ERROR_NONE);
         }
 
+        virtual uint32_t SetSpeed(const int32_t speed)
+        {
+            uint32_t rc = Core::ERROR_NONE;
+            if (_playback) {
+                NEXUS_PlaybackTrickModeSettings settings;
+
+                if ( speed == 1 ) {
+                    TRACE_L1("%s: Normal Play", __FUNCTION__);
+                    NEXUS_Playback_Play(_playback);
+                } else if (speed == 0) {
+                    TRACE_L1("%s: Pause", __FUNCTION__);
+                    NEXUS_Playback_Pause(_playback);
+                } else {
+                    TRACE_L1("%s: Play %dx", __FUNCTION__, speed);
+                    NEXUS_Playback_GetDefaultTrickModeSettings(&settings);
+                    settings.rate = speed * NEXUS_NORMAL_PLAY_SPEED;
+                    NEXUS_Playback_TrickMode(_playback, &settings);
+                }
+            } else {
+                rc = Core::ERROR_PLAYER_UNAVAILABLE;
+                TRACE_L1("%s: No active playback session!", __FUNCTION__);
+            }
+            return (rc);
+        }
+
         virtual uint32_t StartRecord()
         {
             _recorder.Start(_videoDecoder.GetPidChannel(), _audioDecoder.GetPidChannel());
@@ -1296,14 +1329,18 @@ namespace Broadcast {
         }
         virtual uint32_t StartPlay(const string& id)
         {
-            //std:string strId = std::to_string(id);   //"1565810556270";
-            _recorder.PlayStart(id);
+            _recorder.PlayStart(id);    // XXX: check return
+
+            _state = STREAMING;
+            _callback->StateChange(this);
+
             return (Core::ERROR_NONE);
         }
 
         virtual uint32_t StopPlay()
         {
            _recorder.PlayStop();
+
             return (Core::ERROR_NONE);
         }
 

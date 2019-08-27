@@ -309,6 +309,7 @@ namespace Broadcast {
         virtual uint32_t Detach(const uint8_t index) = 0;
 
 
+        virtual uint32_t SetSpeed(const int32_t request) = 0;
         virtual uint32_t StartRecord() = 0;
         virtual uint32_t StopRecord() = 0;
         virtual uint32_t StartPlay(const string& id) = 0;
