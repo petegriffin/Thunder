@@ -91,6 +91,7 @@ namespace Broadcast {
                     , Annex(ITuner::annex::A)
                     , Scan(false)
                     , Callsign("Streamer")
+                    , RecordingLocation("/recordings/")
                 {
                     Add(_T("frontends"), &Frontends);
                     Add(_T("decoders"), &Decoders);
@@ -98,6 +99,8 @@ namespace Broadcast {
                     Add(_T("annex"), &Annex);
                     Add(_T("scan"), &Scan);
                     Add(_T("callsign"), &Callsign);
+                    Add(_T("recordingLocation"), &RecordingLocation);
+
                 }
                 ~Config()
                 {
@@ -110,6 +113,7 @@ namespace Broadcast {
                 Core::JSON::EnumType<ITuner::annex> Annex;
                 Core::JSON::Boolean Scan;
                 Core::JSON::String Callsign;
+                Core::JSON::String RecordingLocation;
             };
             NexusInformation()
                 : _rc(-1)
@@ -134,6 +138,7 @@ namespace Broadcast {
                 _standard = config.Standard.Value();
                 _annex = config.Annex.Value();
                 _eScan = config.Scan.Value();
+                _recordingLocation = config.RecordingLocation.Value();
 
                 NxClient_JoinSettings joinSettings;
                 NxClient_GetDefaultJoinSettings(&joinSettings);
@@ -160,12 +165,13 @@ namespace Broadcast {
             inline bool Scan() const { return (_eScan); }
             inline int AudioDecoder() const { return (_allocResults.simpleAudioDecoder.id); }
             inline int VideoDecoder(const uint8_t index) const { return (_allocResults.simpleVideoDecoder[index].id); }
-
+            inline std::string RecordingLocation()  { return _recordingLocation; }
         private:
             uint8_t _frontends;
             ITuner::DTVStandard _standard;
             ITuner::annex _annex;
             bool _eScan;
+            std::string _recordingLocation;
             NEXUS_Error _rc;
             NxClient_AllocResults _allocResults;
 
@@ -221,7 +227,7 @@ namespace Broadcast {
 
                     if (_decoder != nullptr) {
 
-                    if (_parent.Playback()) {
+                    if (_parent.Mode() == ITuner::Playback) {
                         NEXUS_PlaybackPidChannelSettings playbackPidSettings;
                         NEXUS_Playback_GetDefaultPidChannelSettings(&playbackPidSettings);
                         playbackPidSettings.pidSettings.pidType = NEXUS_PidType_eAudio;
@@ -360,7 +366,7 @@ namespace Broadcast {
                     _streamType = stream;
                     NEXUS_VideoCodec codec = Codec(_streamType);
 
-                    if (_parent.Playback()) {
+                    if (_parent.Mode() == ITuner::Playback) {
                         NEXUS_PlaybackPidChannelSettings playbackPidSettings;
                         NEXUS_Playback_GetDefaultPidChannelSettings(&playbackPidSettings);
                         playbackPidSettings.pidSettings.pidType = NEXUS_PidType_eVideo;
@@ -375,7 +381,7 @@ namespace Broadcast {
                     TRACE_L1("%s: _pidChannel=%p _decoder=%p pid=%d codec=%d", __FUNCTION__, _pidChannel, _decoder, _pid, codec);
 
                     if (_pidChannel != nullptr) {
-                        if (!_parent.Playback()) {
+                        if (_parent.Mode() == ITuner::Live) {
                             NEXUS_SimpleStcChannelSettings& stcSettings(_parent.Settings());
 
                             if (stcSettings.modeSettings.pcr.pidChannel == nullptr) {
@@ -736,8 +742,7 @@ namespace Broadcast {
             Recorder(Tuner& parent, int index)
                 : _parent(parent)
                 , _index(index)
-                , _path("/recordings/")
-                , _filePlay(nullptr)
+                , _path(NexusInformation::Instance().RecordingLocation())
                 , _endTime(0)
             {
             }
@@ -808,6 +813,7 @@ namespace Broadcast {
                     TRACE_L1("NEXUS_Record_AddPidChannel Failed rc=%d", rc);
                 }
                 _startTime = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+                _endTime = _startTime;
                 Save(RecordingId);
             }
 
@@ -826,7 +832,7 @@ namespace Broadcast {
 
             bool Save(const std::string &id)
             {
-                time_t duration =  _endTime - _startTime;
+                uint16_t duration =  _endTime - _startTime;
 
                 info.RecordingId = id;
                 info.VideoType = _parent._videoDecoder.StreamType();
@@ -839,31 +845,91 @@ namespace Broadcast {
                 string filename = _path + id + ".info";
                 Core::File file(filename);
 
-                file.Create();
+                if (!file.Open(false)) {
+                    if (!file.Create()) {
+                        TRACE_L1("%s: Failed to Create %s", __FUNCTION__, filename.c_str());
+                    }
+                }
+
                 if (!info.ToFile(file)) {
                     TRACE_L1("%s: Failed to save %s", __FUNCTION__, filename.c_str());
                 } else {
-                    TRACE_L1("%s Saving %s", __FUNCTION__, filename.c_str());
+                    TRACE_L1("%s: Saving %s", __FUNCTION__, filename.c_str());
                 }
                 file.Close();
+
                 return true;
             }
 
-            bool Load(const std::string &id)
+        private:
+            Tuner& _parent;
+            uint8_t _index;
+            RecordingInfo info;
+            std::string _path;
+            NEXUS_FileRecordHandle file;
+            NEXUS_RecpumpHandle recpump;
+            NEXUS_RecordHandle record;
+
+            uint32_t _connectId;
+            std::string RecordingId;
+            std::time_t _startTime;
+            std::time_t _endTime;
+        };
+
+        class Player
+        {
+        public:
+        private:
+            Player() = delete;
+            Player(const Audio&) = delete;
+            Player& operator=(const Audio&) = delete;
+
+        public:
+            Player(Tuner& parent, int index)
+                : _parent(parent)
+                , _index(index)
+                , _path(NexusInformation::Instance().RecordingLocation())
+                , _filePlay(nullptr)
+                , _playback(nullptr)
             {
-                string filename = _path + id + ".info";
-                Core::File file(filename);
-                file.Open();
-
-                if (!info.FromFile(file)) {
-                    TRACE_L1("%s: Failed to load %s", __FUNCTION__, filename.c_str());
-                }
-                file.Close();
-
-                return true;
+            }
+            ~Player()
+            {
             }
 
-            void PlayStart(const std::string &id)
+            void Create()
+            {
+                NEXUS_Error rc;
+                NEXUS_PlaypumpOpenSettings playpumpOpenSettings;
+                NEXUS_PlaybackSettings playbackSettings;
+
+                NEXUS_Playpump_GetDefaultOpenSettings(&playpumpOpenSettings);
+                _playpump = NEXUS_Playpump_Open(NEXUS_ANY_ID, &playpumpOpenSettings);
+                _playback = NEXUS_Playback_Create();
+
+                NEXUS_Playback_GetSettings(_playback, &playbackSettings);
+                playbackSettings.playpump = _playpump;
+                playbackSettings.simpleStcChannel = _parent.Channel();
+                playbackSettings.stcTrick = true;
+                playbackSettings.playpumpSettings.transportType = NEXUS_TransportType_eTs;
+                playbackSettings.beginningOfStreamAction = NEXUS_PlaybackLoopMode_ePlay;
+                playbackSettings.endOfStreamAction = NEXUS_PlaybackLoopMode_ePause;
+                rc = NEXUS_Playback_SetSettings(_playback, &playbackSettings);
+                if (rc) {
+                    TRACE_L1("Failed to set playback settings rc=%d", rc);
+                }
+            }
+
+            void Destroy()
+            {
+                if (_playback != nullptr) {
+                    NEXUS_Playback_Destroy(_playback);
+
+                    NEXUS_Playpump_Close(_playpump);
+                }
+            }
+
+            void Start(const std::string &id)
             {
                 NEXUS_Error rc;
 
@@ -890,40 +956,76 @@ namespace Broadcast {
                     _parent._videoDecoder.Attach(_index);
                     _parent._audioDecoder.Attach();
 
-                    NEXUS_Playback_Start(_parent.Playback(), _filePlay, NULL);
+                    NEXUS_Playback_Start(_playback, _filePlay, NULL);
                 } else {
                     TRACE_L1("%s: NxClient_Connect failed. rc=%d", __FUNCTION__, rc);
                 }
             }
 
-            void PlayStop()
+            void Stop()
             {
                 if (_filePlay) {
-                    NEXUS_Playback_Stop(_parent.Playback());
+                    NEXUS_Playback_Stop(_playback);
                     NEXUS_FilePlay_Close(_filePlay);
 
                     NxClient_Disconnect(_connectId);
 
                     _parent._videoDecoder.Close();
-                    _parent._audioDecoder.Detach();     // relased in detach not close ???
+                    _parent._audioDecoder.Detach();     // relased in detach not in close ???
 
                     _filePlay = nullptr;
                 }
             }
-        private:
+            uint32_t Speed(const int32_t speed)
+            {
+                uint32_t rc = Core::ERROR_NONE;
+                if (_playback) {
+                    NEXUS_PlaybackTrickModeSettings settings;
+
+                    if ( speed == 1 ) {
+                        TRACE_L1("%s: Normal Play", __FUNCTION__);
+                        NEXUS_Playback_Play(_playback);
+                    } else if (speed == 0) {
+                        TRACE_L1("%s: Pause", __FUNCTION__);
+                        NEXUS_Playback_Pause(_playback);
+                    } else {
+                        TRACE_L1("%s: Play %dx", __FUNCTION__, speed);
+                        NEXUS_Playback_GetDefaultTrickModeSettings(&settings);
+                        settings.rate = speed * NEXUS_NORMAL_PLAY_SPEED;
+                        NEXUS_Playback_TrickMode(_playback, &settings);
+                    }
+                } else {
+                    rc = Core::ERROR_PLAYER_UNAVAILABLE;
+                    TRACE_L1("%s: No active playback session!", __FUNCTION__);
+                }
+                return (rc);
+            }
+
+            bool Load(const std::string &id)
+            {
+                string filename = _path + id + ".info";
+                Core::File file(filename);
+                file.Open();
+
+                if (!info.FromFile(file)) {
+                    TRACE_L1("%s: Failed to load %s", __FUNCTION__, filename.c_str());
+                }
+                file.Close();
+
+                return true;
+            }
+
+            inline NEXUS_PlaybackHandle Playback() const  { return _playback; }
+
+            private:
             Tuner& _parent;
             uint8_t _index;
             RecordingInfo info;
             std::string _path;
-            NEXUS_FileRecordHandle file;
-            NEXUS_RecpumpHandle recpump;
-            NEXUS_RecordHandle record;
-
-            NEXUS_FilePlayHandle _filePlay;
             uint32_t _connectId;
-            std::string RecordingId;
-            std::time_t _startTime;
-            std::time_t _endTime;
+            NEXUS_FilePlayHandle _filePlay;
+            NEXUS_PlaybackHandle _playback;
+            NEXUS_PlaypumpHandle _playpump;
         };
 
         Tuner(uint8_t index, bool playback)
@@ -931,12 +1033,12 @@ namespace Broadcast {
             , _state(IDLE)
             , _lockDuration(0)
             , _parserBand(0)
-            , _playback(nullptr)
             , _pidChannel(nullptr)
             , _videoDecoder(*this)
             , _audioDecoder(*this)
             , _collector(*this)
             , _recorder(*this, index)
+            , _player(*this, index)
             , _programId(~0)
             , _sections()
             , _callback(nullptr)
@@ -944,26 +1046,10 @@ namespace Broadcast {
             _stcChannel = NEXUS_SimpleStcChannel_Create(nullptr);
 
             if (playback) {
-                NEXUS_Error rc;
-                NEXUS_PlaypumpOpenSettings playpumpOpenSettings;
-                NEXUS_PlaybackSettings playbackSettings;
-
-                NEXUS_Playpump_GetDefaultOpenSettings(&playpumpOpenSettings);
-                _playpump = NEXUS_Playpump_Open(NEXUS_ANY_ID, &playpumpOpenSettings);
-                _playback = NEXUS_Playback_Create();
-
-                NEXUS_Playback_GetSettings(_playback, &playbackSettings);
-                playbackSettings.playpump = _playpump;
-                playbackSettings.simpleStcChannel = Channel();
-                playbackSettings.stcTrick = true;
-                playbackSettings.playpumpSettings.transportType = NEXUS_TransportType_eTs;
-                playbackSettings.beginningOfStreamAction = NEXUS_PlaybackLoopMode_ePlay;
-                playbackSettings.endOfStreamAction = NEXUS_PlaybackLoopMode_ePause;
-                rc = NEXUS_Playback_SetSettings(_playback, &playbackSettings);
-                if (rc) {
-                    TRACE_L1("Failed to set playback settings rc=%d", rc);
-                }
+                _mode = ITuner::Playback;
+                _player.Create();
             } else {
+                _mode = ITuner::Live;
                 NEXUS_FrontendAcquireSettings frontendAcquireSettings;
                 NEXUS_Frontend_GetDefaultAcquireSettings(&frontendAcquireSettings);
                 frontendAcquireSettings.capabilities.qam = true;
@@ -1029,12 +1115,9 @@ namespace Broadcast {
                 _frontend = nullptr;
             }
 
-            if (_playback != nullptr) {
-                NEXUS_Playback_Destroy(_playback);
-
-                NEXUS_Playpump_Close(_playpump);
+            if ( _mode == ITuner::Playback ) {
+                _player.Destroy();
             }
-
             _callback = nullptr;
         }
 
@@ -1053,7 +1136,7 @@ namespace Broadcast {
         }
 
     public:
-        inline bool IsValid() const { return ((_frontend != nullptr) || (_playback != nullptr)); }
+        inline bool IsValid() const { return ((_frontend != nullptr) || (Playback() != nullptr)); }
 
         virtual uint32_t Properties() const override
         {
@@ -1258,6 +1341,9 @@ namespace Broadcast {
             NxClient_ConnectSettings connectSettings;
             NxClient_GetDefaultConnectSettings(&connectSettings);
 
+            // background recording
+            //connectSettings.simpleVideoDecoder[0].windowCapabilities.type = NxClient_VideoWindowType_eNone;
+
             if (_stcSettings.modeSettings.pcr.pidChannel != nullptr)
                 connectSettings.simpleVideoDecoder[0].id = NexusInformation::Instance().VideoDecoder(_index);
 
@@ -1293,27 +1379,7 @@ namespace Broadcast {
 
         virtual uint32_t SetSpeed(const int32_t speed)
         {
-            uint32_t rc = Core::ERROR_NONE;
-            if (_playback) {
-                NEXUS_PlaybackTrickModeSettings settings;
-
-                if ( speed == 1 ) {
-                    TRACE_L1("%s: Normal Play", __FUNCTION__);
-                    NEXUS_Playback_Play(_playback);
-                } else if (speed == 0) {
-                    TRACE_L1("%s: Pause", __FUNCTION__);
-                    NEXUS_Playback_Pause(_playback);
-                } else {
-                    TRACE_L1("%s: Play %dx", __FUNCTION__, speed);
-                    NEXUS_Playback_GetDefaultTrickModeSettings(&settings);
-                    settings.rate = speed * NEXUS_NORMAL_PLAY_SPEED;
-                    NEXUS_Playback_TrickMode(_playback, &settings);
-                }
-            } else {
-                rc = Core::ERROR_PLAYER_UNAVAILABLE;
-                TRACE_L1("%s: No active playback session!", __FUNCTION__);
-            }
-            return (rc);
+            return (_player.Speed(speed));
         }
 
         virtual uint32_t StartRecord()
@@ -1329,7 +1395,7 @@ namespace Broadcast {
         }
         virtual uint32_t StartPlay(const string& id)
         {
-            _recorder.PlayStart(id);    // XXX: check return
+            _player.Start(id);    // XXX: check return
 
             _state = STREAMING;
             _callback->StateChange(this);
@@ -1339,7 +1405,7 @@ namespace Broadcast {
 
         virtual uint32_t StopPlay()
         {
-           _recorder.PlayStop();
+           _player.Stop();
 
             return (Core::ERROR_NONE);
         }
@@ -1348,7 +1414,8 @@ namespace Broadcast {
         inline NEXUS_ParserBand& ParserBand() { return (_parserBand); }
         inline NEXUS_SimpleStcChannelHandle Channel() { return (_stcChannel); }
         inline NEXUS_SimpleStcChannelSettings& Settings() { return (_stcSettings); }
-        inline NEXUS_PlaybackHandle Playback()   { return _playback; }
+        inline NEXUS_PlaybackHandle Playback() const  { return _player.Playback(); }
+        inline ITuner::mode Mode()  { return _mode; }
 
         void LockCallback(int32_t param)
         {
@@ -1497,13 +1564,12 @@ namespace Broadcast {
         }
 
     private:
+        ITuner::mode _mode;
         uint8_t _index;
         Core::StateTrigger<state> _state;
         uint64_t _lockDuration;
         NEXUS_FrontendHandle _frontend;
         NEXUS_ParserBand _parserBand;
-        NEXUS_PlaybackHandle _playback;
-        NEXUS_PlaypumpHandle _playpump;
 
         NEXUS_SimpleStcChannelHandle _stcChannel;
         NEXUS_SimpleStcChannelSettings _stcSettings;
@@ -1512,6 +1578,7 @@ namespace Broadcast {
         Audio _audioDecoder;
         Collector _collector;
         Recorder _recorder;
+        Player _player;
         uint32_t _programId;
         uint32_t _connectId;
         Sections _sections;
