@@ -253,6 +253,13 @@ namespace Broadcast {
             C = 0xC00
         };
 
+        enum mode {
+            Live = 0,
+            Record,
+            Playback
+        };
+
+
         // The following methods will be called before any create is called. It allows for an initialization,
         // if requires, and a deinitialization, if the Tuners will no longer be used.
         static uint32_t Initialize(const string& configuration);
