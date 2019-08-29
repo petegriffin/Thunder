@@ -12,6 +12,7 @@ add_executable(${TEST_RUNNER_NAME}
    test_statetrigger.cpp
    test_queue.cpp
    test_event.cpp
+   test_singleton.cpp
 #   test_sharedbuffer.cpp
 )
 
