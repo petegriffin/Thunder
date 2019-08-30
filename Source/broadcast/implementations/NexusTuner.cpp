@@ -1106,9 +1106,9 @@ namespace Broadcast {
     public:
         ~Tuner()
         {
-            TunerAdministrator::Instance().Revoke(this);
-
             Detach(0);
+
+            TunerAdministrator::Instance().Revoke(this);
 
             if (_frontend != nullptr) {
                 NEXUS_Frontend_Release(_frontend);
