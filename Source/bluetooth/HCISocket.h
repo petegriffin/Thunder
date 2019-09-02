@@ -317,7 +317,6 @@ namespace Bluetooth {
             }
 
             bool Success() const {
-                printf("CODE: %d STATUS: %d", inbound.opcode, inbound.status);
                 return inbound.opcode == btohl(outbound.header.opcode) && inbound.status == MGMT_STATUS_SUCCESS;
             }
 
@@ -356,14 +355,6 @@ namespace Bluetooth {
             {
                 uint16_t totalRead = 0;
 
-                printf("### OFFSET: %d\n", _offset);
-
-                printf("##### DATA DUMP #####\n");
-                for (int i = 0; i < length; i++) {
-                    printf("0x%02x\n", stream[i]);
-                }
-                printf("##### DATA END #####\n");
-
                 // read header 
                 if (_offset < MGMT_HDR_SIZE) {
                     uint16_t toRead = std::min(static_cast<uint16_t>(MGMT_HDR_SIZE - _offset), length);
@@ -378,7 +369,7 @@ namespace Bluetooth {
 
                     // Get the rest of data
                     if (_offset < paramLength + MGMT_HDR_SIZE) {
-                        uint16_t toRead = std::min(static_cast<uint16_t>(paramLength + MGMT_HDR_SIZE - _offset), length);
+                        uint16_t toRead = std::min(static_cast<uint16_t>(paramLength + MGMT_HDR_SIZE - _offset), static_cast<uint16_t>(length - totalRead));
 
                         switch (evcode) {
                             case MGMT_EV_CMD_COMPLETE:
@@ -414,7 +405,6 @@ namespace Bluetooth {
             }
 
             inline void ProcessStatus() {
-                printf("#### OPCODE: %d\n", inbound.opcode);
                 if (inbound.status != MGMT_STATUS_SUCCESS) {
                     // TODO: Add assertions on opcode and status max values
                     TRACE_L1("Bluetooth command '%s' failed with status '%s'", mgmt_op[inbound.opcode], mgmt_status[inbound.status]);
@@ -422,7 +412,6 @@ namespace Bluetooth {
             }
 
             inline void ProcessComplete() {
-                printf("#### OPCODE: %d\n", inbound.opcode);
                 if (inbound.status != MGMT_STATUS_SUCCESS) {
                     // TODO: Add assertions on opcode and status max values
                     TRACE_L1("Bluetooth command '%s' failed with status '%s'", mgmt_op[inbound.opcode], mgmt_status[inbound.status]);
@@ -442,7 +431,7 @@ namespace Bluetooth {
                 struct {
                     mgmt_hdr header;
                     OUTBOUND arguments;
-                };
+                } __attribute__ ((packed));
                 uint8_t _buffer[0];
             } outbound;
 
@@ -457,11 +446,11 @@ namespace Bluetooth {
                             uint16_t opcode;
                             uint8_t status;
                             INBOUND parameters;
-                        };
+                        } __attribute__ ((packed));
                         mgmt_ev_cmd_complete evCompleted;
                         mgmt_ev_cmd_complete evStatus;
                     };
-                };
+                } __attribute__ ((packed));
             } inbound;
         };       
 
