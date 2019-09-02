@@ -207,6 +207,7 @@ namespace Bluetooth {
             {
                 return (_error != static_cast<uint16_t>(~0) ? Core::IInbound::COMPLETED : Core::IInbound::INPROGRESS);
             }
+
             virtual uint16_t Deserialize(const uint8_t stream[], const uint16_t length) override
             {
                 uint16_t result = 0;
@@ -271,6 +272,200 @@ namespace Bluetooth {
             uint16_t _error;
         };
 
+        ///////////////////////////////////////////////////
+        ///            Bluetooh Managment API           ///
+        ///////////////////////////////////////////////////
+
+        template <const uint16_t OPCODE, typename OUTBOUND, typename INBOUND>
+        class ManagementType : public Core::IOutbound, public Core::IInbound {        
+        private:
+            ManagementType() = delete;
+            ManagementType(const ManagementType<OPCODE, OUTBOUND, INBOUND>&) = delete;
+            ManagementType<OPCODE, OUTBOUND, INBOUND>& operator=(const ManagementType<OPCODE, OUTBOUND, INBOUND>&) = delete;
+
+        public:
+            ManagementType(const uint16_t adapterIndex) 
+                : inboundSize(std::is_same<INBOUND, Core::Void>::value ? 0 : sizeof(INBOUND))
+                , outboundSize(std::is_same<OUTBOUND, Core::Void>::value ? 0 : sizeof(OUTBOUND))
+                , _offset(outboundSize)
+                , _finished(false)
+                
+            {
+                outbound.header.opcode = htobl(OPCODE);
+                outbound.header.len = htobl(outboundSize);
+                outbound.header.index = htobl(adapterIndex);
+            }
+            virtual ~ManagementType()
+            {
+            }
+
+        public:
+            void Clear()
+            {
+                ::memset(&(outbound.arguments), 0, outboundSize);
+                ::memset(inbound._buffer, 0xff, sizeof(inbound._buffer));
+                _offset = 0;
+                _finished = false;
+            }
+            OUTBOUND* operator->()
+            {
+                return (reinterpret_cast<OUTBOUND*>(&(outbound.arguments)));
+            }
+            INBOUND* Response()
+            {
+                return (reinterpret_cast<INBOUND*>(&(inbound.parameters)));
+            }
+
+            bool Success() const {
+                printf("CODE: %d STATUS: %d", inbound.opcode, inbound.status);
+                return inbound.opcode == btohl(outbound.header.opcode) && inbound.status == MGMT_STATUS_SUCCESS;
+            }
+
+            Core::IOutbound& OpCode(const uint16_t opCode, const OUTBOUND& value)
+            {
+                outbound.header.opcode = htobl(opCode);
+                Clear();
+
+                ::memcpy(reinterpret_cast<OUTBOUND*>(&(outbound.arguments)), &value, outboundSize);
+                return (*this);
+            }
+
+        private:
+            virtual void Reload() const override
+            {
+                _offset = 0;
+            }
+            virtual uint16_t Serialize(uint8_t stream[], const uint16_t length) const override
+            {
+                uint16_t result = std::min(static_cast<uint16_t>(outboundSize + MGMT_HDR_SIZE - _offset), length);
+                if (result > 0) {
+
+                    ::memcpy(stream, &(outbound._buffer[_offset]), result);
+                    _offset += result;
+                }
+
+                if (_offset == outboundSize + MGMT_HDR_SIZE) {
+                    _offset = 0;
+                }
+
+                return (result);
+            }
+
+        private:
+            virtual uint16_t Deserialize(const uint8_t stream[], const uint16_t length) override
+            {
+                uint16_t totalRead = 0;
+
+                printf("### OFFSET: %d\n", _offset);
+
+                printf("##### DATA DUMP #####\n");
+                for (int i = 0; i < length; i++) {
+                    printf("0x%02x\n", stream[i]);
+                }
+                printf("##### DATA END #####\n");
+
+                // read header 
+                if (_offset < MGMT_HDR_SIZE) {
+                    uint16_t toRead = std::min(static_cast<uint16_t>(MGMT_HDR_SIZE - _offset), length);
+                    memcpy(&(inbound._buffer[_offset]), stream, toRead);
+                    _offset += toRead;
+                    totalRead += toRead;
+                }
+
+                if (_offset >= MGMT_HDR_SIZE) {
+                    uint32_t paramLength = btohl(inbound.header.len);
+                    uint16_t evcode = btohl(inbound.header.opcode);
+
+                    // Get the rest of data
+                    if (_offset < paramLength + MGMT_HDR_SIZE) {
+                        uint16_t toRead = std::min(static_cast<uint16_t>(paramLength + MGMT_HDR_SIZE - _offset), length);
+
+                        switch (evcode) {
+                            case MGMT_EV_CMD_COMPLETE:
+                            case MGMT_EV_CMD_STATUS:
+                                memcpy(&(inbound._buffer[_offset]), &(stream[totalRead]), toRead);
+                                _offset += toRead;
+                                totalRead += toRead;
+                                break;
+                            default:
+                                TRACE_L1("Unsupported bluetooth managment command: 0x%04x", evcode);
+                                _finished = true;
+                        }
+                    } 
+                    
+                    // Process event
+                    if (_offset == paramLength + MGMT_HDR_SIZE)
+                    {
+                        switch (evcode) {
+                            case MGMT_EV_CMD_COMPLETE:
+                                ProcessComplete();
+                                break;
+                            case MGMT_EV_CMD_STATUS:
+                                ProcessStatus();
+                                break;
+                            default:
+                                TRACE_L1("Unsupported bluetooth managment command");
+                        }
+                        _finished = true; 
+                    }
+                }
+
+                return (totalRead);
+            }
+
+            inline void ProcessStatus() {
+                printf("#### OPCODE: %d\n", inbound.opcode);
+                if (inbound.status != MGMT_STATUS_SUCCESS) {
+                    // TODO: Add assertions on opcode and status max values
+                    TRACE_L1("Bluetooth command '%s' failed with status '%s'", mgmt_op[inbound.opcode], mgmt_status[inbound.status]);
+                }
+            }
+
+            inline void ProcessComplete() {
+                printf("#### OPCODE: %d\n", inbound.opcode);
+                if (inbound.status != MGMT_STATUS_SUCCESS) {
+                    // TODO: Add assertions on opcode and status max values
+                    TRACE_L1("Bluetooth command '%s' failed with status '%s'", mgmt_op[inbound.opcode], mgmt_status[inbound.status]);
+                }
+            }
+
+            virtual state IsCompleted() const override {
+                return _finished ? state::COMPLETED : state::INPROGRESS;
+            }
+
+        private:
+            const uint16_t inboundSize;
+            const uint16_t outboundSize;
+            mutable uint16_t _offset;
+
+            union {
+                struct {
+                    mgmt_hdr header;
+                    OUTBOUND arguments;
+                };
+                uint8_t _buffer[0];
+            } outbound;
+
+        private:
+            bool _finished;
+            union {
+                uint8_t _buffer[0];
+                struct {
+                    mgmt_hdr header;
+                    union {
+                        struct {
+                            uint16_t opcode;
+                            uint8_t status;
+                            INBOUND parameters;
+                        };
+                        mgmt_ev_cmd_complete evCompleted;
+                        mgmt_ev_cmd_complete evStatus;
+                    };
+                };
+            } inbound;
+        };       
+
+        //////////////////////////////////////////////
     public:
         class FeatureIterator {
         public:

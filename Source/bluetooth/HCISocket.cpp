@@ -3,68 +3,6 @@
 namespace WPEFramework {
 
 namespace Bluetooth {
-
-        template <const uint16_t OPCODE, typename OUTBOUND>
-        class ManagementType : public Core::IOutbound {
-        private:
-            ManagementType() = delete;
-            ManagementType(const ManagementType<OPCODE, OUTBOUND>&) = delete;
-            ManagementType<OPCODE, OUTBOUND>& operator=(const ManagementType<OPCODE, OUTBOUND>&) = delete;
-
-        public:
-            ManagementType(const uint16_t adapterIndex)
-                : _offset(sizeof(_buffer))
-            {
-                _buffer[0] = (OPCODE & 0xFF);
-                _buffer[1] = (OPCODE >> 8) & 0xFF;
-                _buffer[2] = (adapterIndex & 0xFF);
-                _buffer[3] = ((adapterIndex >> 8) & 0xFF);
-                _buffer[4] = static_cast<uint8_t>(sizeof(OUTBOUND) & 0xFF);
-                _buffer[5] = static_cast<uint8_t>((sizeof(OUTBOUND) >> 8) & 0xFF);
-            }
-            virtual ~ManagementType()
-            {
-            }
-
-        public:
-            void Clear()
-            {
-                ::memset(&(_buffer[6]), 0, sizeof(_buffer) - 6);
-            }
-            OUTBOUND* operator->()
-            {
-                return (reinterpret_cast<OUTBOUND*>(&(_buffer[6])));
-            }
-            Core::IOutbound& OpCode(const uint16_t opCode, const OUTBOUND& value)
-            {
-                _buffer[0] = (opCode & 0xFF);
-                _buffer[1] = ((opCode >> 8) & 0xFF);
-                ::memcpy(reinterpret_cast<OUTBOUND*>(&(_buffer[6])), &value, sizeof(OUTBOUND));
-                return (*this);
-            }
-
-        private:
-            virtual void Reload() const override
-            {
-                _offset = 0;
-            }
-            virtual uint16_t Serialize(uint8_t stream[], const uint16_t length) const override
-            {
-                uint16_t result = std::min(static_cast<uint16_t>(sizeof(_buffer) - _offset), length);
-                if (result > 0) {
-
-                    ::memcpy(stream, &(_buffer[_offset]), result);
-                    // for (uint8_t index = 0; index < result; index++) { printf("%02X:", stream[index]); } printf("\n");
-                    _offset += result;
-                }
-                return (result);
-            }
-
-        private:
-            mutable uint16_t _offset;
-            uint8_t _buffer[6 + sizeof(OUTBOUND)];
-        };
-
 // ------------------------------------------------------------------------
 // Create definitions for the Management commands
 // ------------------------------------------------------------------------
@@ -73,45 +11,56 @@ static constexpr mgmt_mode DISABLE_MODE = { 0x00 };
 static constexpr mgmt_mode ENABLE_MODE  = { 0x01 };
 
 struct Management {
-    typedef ManagementType<~0, mgmt_mode> OperationalMode;
-    typedef ManagementType<MGMT_OP_PAIR_DEVICE, mgmt_cp_pair_device> Pair;
-    typedef ManagementType<MGMT_OP_UNPAIR_DEVICE, mgmt_cp_unpair_device> Unpair;
+    //typedef HCISocket::ManagementCommand<~0, int, 0> GeneralCommand;
+    typedef HCISocket::ManagementType<~0, mgmt_mode, uint32_t> OperationalMode;
+    typedef HCISocket::ManagementType<MGMT_OP_PAIR_DEVICE, mgmt_cp_pair_device, Core::Void> Pair;
+    typedef HCISocket::ManagementType<MGMT_OP_UNPAIR_DEVICE, mgmt_cp_unpair_device, Core::Void> Unpair;
 };
-
 
 uint32_t HCISocket::Config(const bool powered, const bool bondable, const bool advertising, const bool simplePairing, const bool lowEnergy, const bool secure)
 {
     uint32_t result = Core::ERROR_GENERAL;
-
-    Management::OperationalMode command(SocketPort::LocalNode().PortNumber());
-
     ASSERT (IsOpen() == true);
 
-    if (Exchange(500, command.OpCode(MGMT_OP_SET_POWERED, powered ? ENABLE_MODE : DISABLE_MODE)) != Core::ERROR_NONE) {
-        TRACE_L1("Failed to power on bluetooth adaptor");
-    }
-    // Enable/Disable Bondable on adaptor.
-    else if (Exchange(500, command.OpCode(MGMT_OP_SET_BONDABLE, bondable ? ENABLE_MODE : DISABLE_MODE)) != Core::ERROR_NONE) {
-        TRACE_L1("Failed to enable Bondable");
-    }
-    // Enable/Disable Simple Secure Simple Pairing.
-    else if (Exchange(500, command.OpCode(MGMT_OP_SET_SSP, simplePairing ? ENABLE_MODE : DISABLE_MODE)) != Core::ERROR_NONE) {
-        TRACE_L1("Failed to enable Simple Secure Simple Pairing");
-    }
-    // Enable/Disable Low Energy
-    else if (Exchange(500, command.OpCode(MGMT_OP_SET_LE, lowEnergy ? ENABLE_MODE : DISABLE_MODE)) != Core::ERROR_NONE) {
-        TRACE_L1("Failed to enable Low Energy");
-    }
-    // Enable/Disable Secure Connections
-    else if (Exchange(500, command.OpCode(MGMT_OP_SET_SECURE_CONN, secure ? ENABLE_MODE : DISABLE_MODE)) != Core::ERROR_NONE) {
-        TRACE_L1("Failed to enable Secure Connections");
-    }
-    // Enable/Disable Advertising
-    else if (Exchange(500, command.OpCode(MGMT_OP_SET_ADVERTISING, advertising ? ENABLE_MODE : DISABLE_MODE)) != Core::ERROR_NONE) {
-        TRACE_L1("Failed to enable Advertising");
-    }
-    else {
-        result = Core::ERROR_NONE;
+    // Get controllers list
+    std::list<uint16_t> controllers;
+    HCISocket::ManagementType<MGMT_OP_READ_INDEX_LIST, Core::Void, mgmt_rp_read_index_list> getIndexes(0xffff);
+    if (Exchange(500, getIndexes, getIndexes) != Core::ERROR_NONE || (getIndexes.Success() != true)) {
+        TRACE_L1("Failed to get bluetooth controllers");
+    } else if (getIndexes.Response()->num_controllers == 0) {
+        TRACE_L1("No bluetooth controllers found");
+    } else {
+        uint16_t controller = getIndexes.Response()->index[0];
+
+        Management::OperationalMode command(controller);
+
+        if (Exchange(500, command.OpCode(MGMT_OP_SET_POWERED, powered ? ENABLE_MODE : DISABLE_MODE), command) != Core::ERROR_NONE || (command.Success() != true)) {
+            TRACE_L1("Failed to power on bluetooth adaptor");
+        }
+        // Enable/Disable Bondable on adaptor.
+        else if (Exchange(500, command.OpCode(MGMT_OP_SET_BONDABLE, bondable ? ENABLE_MODE : DISABLE_MODE), command) != Core::ERROR_NONE || (command.Success() != true)) {
+            TRACE_L1("Failed to enable Bondable");
+        }
+        // Enable/Disable Simple Secure Simple Pairing.
+        else if (Exchange(500, command.OpCode(MGMT_OP_SET_SSP, simplePairing ? ENABLE_MODE : DISABLE_MODE), command) != Core::ERROR_NONE || (command.Success() != true)) {
+            TRACE_L1("Failed to enable Simple Secure Simple Pairing");
+        }
+        // Enable/Disable Low Energy
+        else if (Exchange(500, command.OpCode(MGMT_OP_SET_LE, lowEnergy ? ENABLE_MODE : DISABLE_MODE), command) != Core::ERROR_NONE || (command.Success() != true)) {
+            TRACE_L1("Failed to enable Low Energy");
+        }
+        // Enable/Disable Secure Connections
+        else if (Exchange(500, command.OpCode(MGMT_OP_SET_SECURE_CONN, secure ? ENABLE_MODE : DISABLE_MODE), command) != Core::ERROR_NONE || (command.Success() != true)) {
+            TRACE_L1("Failed to enable Secure Connections");
+        }
+        // Enable/Disable Advertising
+        else if (Exchange(500, command.OpCode(MGMT_OP_SET_ADVERTISING, advertising ? ENABLE_MODE : DISABLE_MODE), command) != Core::ERROR_NONE || (command.Success() != true)) {
+            TRACE_L1("Failed to enable Advertising");
+        }
+        else {
+            printf("# STATUS: %d\n", *(command.Response()));
+            result = Core::ERROR_NONE;
+        }
     }
 
     return (result);
