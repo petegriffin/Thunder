@@ -316,12 +316,14 @@ namespace Broadcast {
         virtual uint32_t Detach(const uint8_t index) = 0;
 
 
-        virtual uint32_t SetSpeed(const int32_t request) = 0;
         virtual uint32_t StartRecord() = 0;
         virtual uint32_t StopRecord() = 0;
         virtual uint32_t StartPlay(const string& id) = 0;
         virtual uint32_t StopPlay() = 0;
-
+        virtual uint32_t Speed(const int32_t request) = 0;
+        virtual uint32_t Speed() = 0;
+        virtual uint32_t Position(const uint64_t request) = 0;
+        virtual uint64_t Position() = 0;
 
         // If you have an ITuner interface, you can subscribe to state changes of this Tuner interface
         // This will only be one instance, by design, to avoid the overhead of maintining a list and

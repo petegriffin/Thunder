@@ -976,29 +976,53 @@ namespace Broadcast {
                     _filePlay = nullptr;
                 }
             }
+
             uint32_t Speed(const int32_t speed)
             {
-                uint32_t rc = Core::ERROR_NONE;
+                uint32_t result = Core::ERROR_NONE;
+                NEXUS_Error rc = 0;
+
                 if (_playback) {
                     NEXUS_PlaybackTrickModeSettings settings;
 
                     if ( speed == 1 ) {
                         TRACE_L1("%s: Normal Play", __FUNCTION__);
-                        NEXUS_Playback_Play(_playback);
+                        rc = NEXUS_Playback_Play(_playback);
                     } else if (speed == 0) {
                         TRACE_L1("%s: Pause", __FUNCTION__);
-                        NEXUS_Playback_Pause(_playback);
+                        rc = NEXUS_Playback_Pause(_playback);
                     } else {
-                        TRACE_L1("%s: Play %dx", __FUNCTION__, speed);
+                        TRACE_L1("%s: Play  %.3fx", __FUNCTION__, ((float_t)speed) / NEXUS_NORMAL_PLAY_SPEED);
                         NEXUS_Playback_GetDefaultTrickModeSettings(&settings);
-                        settings.rate = speed * NEXUS_NORMAL_PLAY_SPEED;
-                        NEXUS_Playback_TrickMode(_playback, &settings);
+                        settings.rate = speed;
+                        rc = NEXUS_Playback_TrickMode(_playback, &settings);
                     }
+                    result = (rc == 0) ? Core::ERROR_NONE : Core::ERROR_GENERAL;
                 } else {
-                    rc = Core::ERROR_PLAYER_UNAVAILABLE;
+                    result = Core::ERROR_PLAYER_UNAVAILABLE;
                     TRACE_L1("%s: No active playback session!", __FUNCTION__);
                 }
-                return (rc);
+
+                return result;
+            }
+
+            uint32_t Speed()
+            {
+                return 0;
+            }
+
+            uint32_t Position(const uint64_t position)
+            {
+                NEXUS_Error rc = 0;
+
+                rc = NEXUS_Playback_Seek(_playback, (NEXUS_PlaybackPosition) position);
+
+                return ( (rc == 0) ? Core::ERROR_NONE : Core::ERROR_GENERAL);
+            }
+
+            uint64_t Position()
+            {
+                return 0;
             }
 
             bool Load(const std::string &id)
@@ -1377,9 +1401,22 @@ namespace Broadcast {
             return (Core::ERROR_NONE);
         }
 
-        virtual uint32_t SetSpeed(const int32_t speed)
+        virtual uint32_t Speed(const int32_t speed)
         {
             return (_player.Speed(speed));
+        }
+        virtual uint32_t Speed()
+        {
+            return (_player.Speed());
+        }
+
+        virtual uint32_t Position(const uint64_t position)
+        {
+            return (_player.Position(position));
+        }
+        virtual uint64_t Position()
+        {
+            return (_player.Position());
         }
 
         virtual uint32_t StartRecord()
