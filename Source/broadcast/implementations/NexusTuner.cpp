@@ -42,6 +42,9 @@ namespace Broadcast {
     static const unsigned J83ASymbolRateQAM64 = 5056941;
     static const unsigned J83ASymbolRateQAM256 = 5360537;
 
+    static constexpr char VideoFileExt[] = ".mpg";
+    static constexpr char IndexFileExt[] = ".nav";
+
     // BASE:
     // https://github.com/Metrological/bcm-refsw/blob/17.4-uma/nexus/examples/multiprocess/fcc_client.c
     // #define NEXUS_SATELITE 1
@@ -756,8 +759,8 @@ namespace Broadcast {
                 NEXUS_RecordPidChannelSettings pidSettings;
                 NEXUS_RecordSettings recordSettings;
                 RecordingId = std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
-                std::string filename  = _path + RecordingId + ".mpg";
-                std::string indexname = _path + RecordingId + ".nav";
+                std::string filename  = _path + RecordingId + VideoFileExt;
+                std::string indexname = _path + RecordingId + IndexFileExt;
 
                 recpump = NEXUS_Recpump_Open(0, NULL);
 
@@ -933,8 +936,8 @@ namespace Broadcast {
             {
                 NEXUS_Error rc;
 
-                std::string filename  = _path + id + ".mpg";
-                std::string indexname = _path + id + ".nav";
+                std::string filename  = _path + id + VideoFileExt;
+                std::string indexname = _path + id + IndexFileExt;
 
                 Load(id);
                 TRACE_L1("%s: Opening %s", __FUNCTION__, filename.c_str());
@@ -985,7 +988,7 @@ namespace Broadcast {
                 if (_playback) {
                     NEXUS_PlaybackTrickModeSettings settings;
 
-                    if ( speed == 1 ) {
+                    if ( speed == NEXUS_NORMAL_PLAY_SPEED ) {
                         TRACE_L1("%s: Normal Play", __FUNCTION__);
                         rc = NEXUS_Playback_Play(_playback);
                     } else if (speed == 0) {
@@ -1008,7 +1011,17 @@ namespace Broadcast {
 
             uint32_t Speed()
             {
-                return 0;
+                NEXUS_Error rc = 0;
+                NEXUS_PlaybackStatus status;
+
+                rc = NEXUS_Playback_GetStatus(_playback, &status);
+                if (rc == 0) {
+                    TRACE_L1("%s: rate=%d", __FUNCTION__, status.trickModeSettings.rate);
+                } else {
+                    TRACE_L1("%s: Failed to get Playback Status rc = %d ", __FUNCTION__, rc);
+                }
+
+                return status.trickModeSettings.rate;
             }
 
             uint32_t Position(const uint64_t position)
@@ -1022,7 +1035,17 @@ namespace Broadcast {
 
             uint64_t Position()
             {
-                return 0;
+                NEXUS_Error rc = 0;
+
+                NEXUS_PlaybackStatus status;
+                rc = NEXUS_Playback_GetStatus(_playback, &status);
+                if (rc == 0) {
+                    TRACE_L1("%s: position=%lu readPosition=%lu", __FUNCTION__, status.position, status.readPosition);
+                } else {
+                    TRACE_L1("%s: Failed to get Playback Status rc = %d ", __FUNCTION__, rc);
+                }
+
+                return status.position;
             }
 
             bool Load(const std::string &id)
