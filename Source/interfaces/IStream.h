@@ -105,7 +105,7 @@ namespace Exchange {
         enum { ID = ID_PLAYER };
 
         virtual ~IPlayer() {}
-        virtual IStream* CreateStream(const IStream::streamtype streamType, const bool isPlayblack) = 0;
+        virtual IStream* CreateStream(const IStream::streamtype streamType, uint8_t mode) = 0;
         virtual uint32_t Configure(PluginHost::IShell* service) = 0;
 
         //virtual uint32_t Start() = 0;

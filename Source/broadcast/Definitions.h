@@ -255,8 +255,9 @@ namespace Broadcast {
 
         enum mode {
             Live = 0,
+            Playback,
             Record,
-            Playback
+            PauseLive
         };
 
 
@@ -266,7 +267,7 @@ namespace Broadcast {
         static uint32_t Deinitialize();
 
         // Accessor to create a tuner.
-        static ITuner* Create(const string& info, const bool isPlayback);
+        static ITuner* Create(const string& info, uint8_t mode);
 
         // Accessor to metadata on the tuners.
         static void Register(INotification* notify);
