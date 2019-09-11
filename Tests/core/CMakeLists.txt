@@ -12,8 +12,8 @@ add_executable(${TEST_RUNNER_NAME}
    test_json.cpp
    test_jsonparser.cpp
    test_logging.cpp
-   test_measurement_type.cpp
-   test_number_type.cpp
+#   test_measurement_type.cpp
+#   test_number_type.cpp
    test_queue.cpp
    test_rpc.cpp
    test_semahore.cpp
