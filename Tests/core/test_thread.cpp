@@ -7,7 +7,7 @@
 namespace WPEFramework {
 namespace Tests {
 
-    bool g_threadDone = false;
+    static bool g_threadDone = false;
     std::thread::id g_parentTid;
 
     class ThreadClass : public Core::Thread {
