@@ -54,7 +54,7 @@ namespace Tests {
         }
     };
 
-    TEST(Core_Thread, SimpleThread)
+    TEST(Core_Thread, DISABLED_SimpleThread)
     {
         g_parentTid = std::this_thread::get_id();
         g_threadDone = false;

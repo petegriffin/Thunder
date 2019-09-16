@@ -63,7 +63,7 @@ TEST(test_portability, simple_lower)
     ASSERT_STREQ(input.c_str(),_T("hello"));
 }
 
-TEST(test_portability, simple_generic)
+TEST(test_portability, DISABLED_simple_generic)
 {
    SleepS(1);
    SleepMs(1);

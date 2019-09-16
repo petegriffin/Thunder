@@ -66,7 +66,7 @@ TEST(Core_Time, to_standards)
     time.ToISO8601(true);
     time.ToISO8601(false);
 }
-TEST(Core_Time, FromRFC1123)
+TEST(Core_Time, DISABLED_FromRFC1123)
 {
     Time t1 =  Time(2018,1,23,11,30,23,21,false);
     std::string timeString;
