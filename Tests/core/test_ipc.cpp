@@ -179,7 +179,7 @@ public:
     }
 };
 
-TEST(Core_IPC, simpleSet)
+TEST(Core_IPC, DISABLED_simpleSet)
 {
     IPTestAdministrator::OtherSideMain otherSide = [](IPTestAdministrator & testAdmin) {
         Core::NodeId continousNode(g_continuousConnector.c_str());

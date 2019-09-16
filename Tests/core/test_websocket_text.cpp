@@ -84,7 +84,7 @@ namespace TextWebSocketTest {
 	};
 }
 
-TEST(WebSocket, Text)
+TEST(WebSocket, DISABLED_Text)
 {
     IPTestAdministrator::OtherSideMain otherSide = [](IPTestAdministrator & testAdmin) {
         Core::SocketServerType<TextWebSocketTest::SocketServerLink> textWebSocketServer(Core::NodeId(TextWebSocketTest::g_connector));

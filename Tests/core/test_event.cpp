@@ -84,7 +84,7 @@ TEST(test_event, set_event)
     ASSERT_FALSE(g_set_event);
     object.Stop();     
 }
-TEST(test_event, pulse_event)
+TEST(test_event, DISABLED_pulse_event)
 {
     ThreadClass object;
     object.Run();

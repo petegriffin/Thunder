@@ -5,7 +5,7 @@
 
 using namespace WPEFramework;
 
-TEST(Core_DataBuffer, simpleSet)
+TEST(Core_DataBuffer, DISABLED_simpleSet)
 {
     uint32_t bufferSize = 10;    
     uint32_t size;

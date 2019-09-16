@@ -145,7 +145,7 @@ namespace JsonWebSocketTest {
 	};
 } // namespace
 
-TEST(WebSocket, Json)
+TEST(WebSocket, DISABLED_Json)
 {
     IPTestAdministrator::OtherSideMain otherSide = [](IPTestAdministrator & testAdmin) {
         Core::SocketServerType<JsonWebSocketTest::SocketServerLink> jsonWebSocketServer(Core::NodeId(JsonWebSocketTest::g_connector));

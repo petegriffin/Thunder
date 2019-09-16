@@ -8,7 +8,7 @@ namespace Tests {
 
     string g_fileName = "/tmp/doorbell01";
 
-    TEST(Core_DoorBell, simpleSet)
+    TEST(Core_DoorBell, DISABLED_simpleSet)
     {
         IPTestAdministrator::OtherSideMain otherSide = [](IPTestAdministrator & testAdmin) {
             Core::DoorBell doorBell(g_fileName.c_str());

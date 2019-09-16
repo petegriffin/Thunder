@@ -8,7 +8,7 @@ namespace Tests {
 
     const char g_bufferName[] = "cyclicbuffer01";
 
-    TEST(Core_CyclicBuffer, WithoutOverwrite)
+    TEST(Core_CyclicBuffer, DISABLED_WithoutOverwrite)
     {
         IPTestAdministrator::OtherSideMain otherSide = [](IPTestAdministrator & testAdmin) {
             uint32_t result;
@@ -85,7 +85,7 @@ namespace Tests {
         Core::Singleton::Dispose();
     }
 
-    TEST(Core_CyclicBuffer, WithOverwrite)
+    TEST(Core_CyclicBuffer, DISABLED_WithOverwrite)
     {
         IPTestAdministrator::OtherSideMain otherSide = [](IPTestAdministrator & testAdmin) {
             uint32_t result;
