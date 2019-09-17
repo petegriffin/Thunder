@@ -51,6 +51,10 @@
       "description": "Stream type",
       "example": "cable"
     },
+    "mode": {
+      "type": "number",
+      "description": "Stream mode"
+    },
     "state": {
       "description": "Stream state",
       "type": "string",
@@ -106,6 +110,10 @@
         "width",
         "height"
       ]
+    },
+    "recordingId": {
+      "type": "string",
+      "description": "Recording ID"
     }
   },
   "properties": {
@@ -316,6 +324,9 @@
         "properties": {
           "type": {
             "$ref": "#/definitions/stream"
+          },
+          "mode": {
+            "$ref": "#/definitions/mode"
           }
         }
       },
@@ -439,7 +450,84 @@
           "$ref": "#/common/errors/inprogress"
         }
       ]
+    },
+
+    "Streamer.1.startRecord": {
+      "summary": "Start Recording.",
+      "params": {
+        "$ref": "#/definitions/id"
+      },
+      "result": {
+        "$ref": "#/common/results/void"
+      },
+      "errors": [
+        {
+          "description": "Unknown stream ID given",
+          "$ref": "#/common/errors/unknownkey"
+        }
+      ]
+    },
+    "Streamer.1.stopRecord": {
+      "summary": "Stop Recording.",
+      "params": {
+        "$ref": "#/definitions/id"
+      },
+      "result": {
+        "$ref": "#/common/results/void"
+      },
+      "errors": [
+        {
+          "description": "Unknown stream ID given",
+          "$ref": "#/common/errors/unknownkey"
+        }
+      ]
+    },
+    "Streamer.1.startPlay": {
+      "summary": "Start Paly.",
+      "params": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/definitions/id/properties/id"
+          },
+          "recordingId": {
+            "description": "Recording Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "recordingId"
+        ]
+      },
+      "result": {
+        "$ref": "#/common/results/void"
+      },
+      "errors": [
+        {
+          "description": "Unknown stream ID given",
+          "$ref": "#/common/errors/unknownkey"
+        }
+      ]
+    },
+    "Streamer.1.stopPlay": {
+      "summary": "Start Recording.",
+      "params": {
+        "$ref": "#/definitions/id"
+      },
+      "result": {
+        "$ref": "#/common/results/void"
+      },
+      "errors": [
+        {
+          "description": "Unknown stream ID given",
+          "$ref": "#/common/errors/unknownkey"
+        }
+      ]
     }
+
+
+
   },
   "events": {
     "statechange": {
