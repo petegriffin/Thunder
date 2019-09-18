@@ -68,7 +68,7 @@ namespace Tests {
         object.Wait(Core::Thread::BLOCKED | Core::Thread::STOPPED | Core::Thread::STOPPING, Core::infinite);
     }
 
-    TEST(Core_Thread, ThreadPool)
+    TEST(Core_Thread, DISABLED_ThreadPool)
     {
         g_parentTid = std::this_thread::get_id();
         g_threadDone = false;
