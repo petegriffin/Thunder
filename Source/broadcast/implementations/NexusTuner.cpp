@@ -221,6 +221,7 @@ namespace Broadcast {
             uint32_t Close()
             {
                 _pid = 0;
+                _pidChannel = nullptr;
                 return (Core::ERROR_NONE);
             }
 
@@ -237,26 +238,7 @@ namespace Broadcast {
                     _decoder = NEXUS_SimpleAudioDecoder_Acquire(NexusInformation::Instance().AudioDecoder());
 
                     if (_decoder != nullptr) {
-                        #if 1
-                            _pidChannel = _parent.GetPidChannel(AudioPidChannel, _pid);
-                        #else
-                        if (_parent.Mode() == ITuner::Playback) {
-                            NEXUS_PlaybackPidChannelSettings playbackPidSettings;
-                            NEXUS_Playback_GetDefaultPidChannelSettings(&playbackPidSettings);
-                            playbackPidSettings.pidSettings.pidType = NEXUS_PidType_eAudio;
-                            playbackPidSettings.pidTypeSettings.audio.simpleDecoder = _decoder;
-                            _pidChannel = NEXUS_Playback_OpenPidChannel(_parent.Playback(), _pid, &playbackPidSettings);
-                        } else {
-                            _pidChannel = NEXUS_PidChannel_Open(_parent.ParserBand(), _pid, nullptr);
-
-                            NEXUS_SimpleStcChannelSettings& settings(_parent.Settings());
-                            if (settings.modeSettings.pcr.pidChannel == nullptr) {
-                                // If the PCR pid is not set, this is an Audio only stream, do the settings on the stcChannel !!
-                                int rc = NEXUS_SimpleStcChannel_SetSettings(_parent.Channel(), &settings);
-                                BDBG_ASSERT(!rc);
-                            }
-                        }
-                        #endif
+                        _pidChannel = _parent.OpenPidChannel(AudioPidChannel, _pid);
 
                         if (_pidChannel != nullptr) {
 
@@ -287,10 +269,7 @@ namespace Broadcast {
                     NEXUS_SimpleAudioDecoder_Stop(_decoder);
                     NEXUS_SimpleAudioDecoder_Release(_decoder);
 
-                    if (_pidChannel != nullptr) {
-                        NEXUS_PidChannel_Close(_pidChannel);
-                        _pidChannel = nullptr;
-                    }
+                    _pidChannel = nullptr;
 
                     _decoder = nullptr;
                 }
@@ -366,21 +345,7 @@ namespace Broadcast {
                     _streamType = stream;
                     NEXUS_VideoCodec codec = Codec(_streamType);
 
-                    #if 1
-                        _pidChannel = _parent.GetPidChannel(AudioPidChannel, _pid);
-                    #else
-                    if (_parent.Mode() == ITuner::Playback) {
-                        NEXUS_PlaybackPidChannelSettings playbackPidSettings;
-                        NEXUS_Playback_GetDefaultPidChannelSettings(&playbackPidSettings);
-                        playbackPidSettings.pidSettings.pidType = NEXUS_PidType_eVideo;
-                        playbackPidSettings.pidTypeSettings.video.codec = Codec(_streamType);
-                        playbackPidSettings.pidTypeSettings.video.index = true;
-                        playbackPidSettings.pidTypeSettings.video.simpleDecoder = _decoder;
-                        _pidChannel = NEXUS_Playback_OpenPidChannel(_parent.Playback(), _pid, &playbackPidSettings);
-                    } else {
-                        _pidChannel = NEXUS_PidChannel_Open(_parent.ParserBand(), _pid, nullptr);
-                    }
-                    #endif
+                    _pidChannel = _parent.OpenPidChannel(VideoPidChannel, _pid);
 
                     TRACE_L1("Primer::%s: _pidChannel=%p _decoder=%p pid=%d codec=%d", __FUNCTION__, _pidChannel, _decoder, _pid, codec);
 
@@ -426,10 +391,7 @@ namespace Broadcast {
                     NEXUS_SimpleVideoDecoder_Release(_decoder);
                     _decoder = nullptr;
                 }
-                //if (_pidChannel != nullptr) {
-                //    NEXUS_PidChannel_Close(_pidChannel);
-                //    _pidChannel = nullptr;
-                //}
+                _pidChannel = nullptr;
                 return (Core::ERROR_NONE);
             }
 
@@ -1002,7 +964,7 @@ namespace Broadcast {
                 std::string indexname = _path + id + IndexFileExt;
 
                 Load(id);
-                TRACE_L1("%s: Opening %s", __FUNCTION__, filename.c_str());
+                TRACE_L1("%s: Opening %s _index=%d", __FUNCTION__, filename.c_str(), _index);
                 _filePlay = NEXUS_FilePlay_OpenPosix(filename.c_str(), indexname.c_str());
 
                 _parent._videoDecoder.Open(info.VideoPid.Value(), info.VideoType.Value(), _index);
@@ -1147,26 +1109,23 @@ namespace Broadcast {
             , _state(IDLE)
             , _lockDuration(0)
             , _parserBand(0)
-            //, _pidChannel(nullptr)
             , _videoDecoder(*this)
             , _audioDecoder(*this)
             , _collector(*this)
-            , _recorder(*this, index)
-            , _player(*this, index)
+            , _recorder(*this, _index)
+            , _player(*this, _index)
             , _programId(~0)
             , _sections()
             , _callback(nullptr)
         {
 
             for (int i = 0; i < MaxPidChannel; ++i) {
-                if (_pidChannel[i] != nullptr) {
-                    _pidChannel[i] = nullptr;
-                }
+                _pidChannel[i] = nullptr;
             }
             _stcChannel = NEXUS_SimpleStcChannel_Create(nullptr);
 
             _mode = static_cast<ITuner::mode>(mode);
-            TRACE_L1("%s: Mode %d mode=%d", __FUNCTION__, _mode, mode);
+            TRACE_L1("%s: _mode=%d mode=%d _index=%d", __FUNCTION__, _mode, mode, _index);
             if (_mode == ITuner::Playback) {
                 _player.Create();
             } else {
@@ -1473,13 +1432,14 @@ namespace Broadcast {
             //    connectSettings.simpleVideoDecoder[0].windowCapabilities.type = NxClient_VideoWindowType_eNone;
 
             if (!background) {
-            if (_stcSettings.modeSettings.pcr.pidChannel != nullptr)
-                connectSettings.simpleVideoDecoder[0].id = NexusInformation::Instance().VideoDecoder(_index);
+                if (_stcSettings.modeSettings.pcr.pidChannel != nullptr)
+                    connectSettings.simpleVideoDecoder[0].id = NexusInformation::Instance().VideoDecoder(_index);
 
-            // TODO: Should be conditional, only if we have Audio
-            connectSettings.simpleAudioDecoder.id = NexusInformation::Instance().AudioDecoder();
+                // TODO: Should be conditional, only if we have Audio
+                connectSettings.simpleAudioDecoder.id = NexusInformation::Instance().AudioDecoder();
 
-            rc = NxClient_Connect(&connectSettings, &_connectId);
+                rc = NxClient_Connect(&connectSettings, &_connectId);
+                TRACE_L1("NxClient_Connect rc=%d", rc);
             }
 
             if (rc == 0) {
@@ -1561,48 +1521,9 @@ namespace Broadcast {
         virtual uint32_t StopPlay()
         {
            _player.Stop();
+            ClosePidChannel();
 
             return (Core::ERROR_NONE);
-        }
-
-        NEXUS_PidChannelHandle GetPidChannel(PidChannelType pidChanType, uint16_t pid)
-        {
-            NEXUS_PidChannelHandle pidChannel = nullptr;
-
-            if (pidChanType > MaxPidChannel)
-                return pidChannel;
-
-            if ( _pidChannel[pidChanType] ) {
-                pidChannel = _pidChannel[pidChanType];
-            } else {
-                TRACE_L1("Opening Pid Channel type=%d", pidChanType);
-                if (_mode == ITuner::Playback) {
-                    NEXUS_PlaybackPidChannelSettings playbackPidSettings;
-                    NEXUS_Playback_GetDefaultPidChannelSettings(&playbackPidSettings);
-                    if (pidChanType == AudioPidChannel) {
-                        playbackPidSettings.pidSettings.pidType = NEXUS_PidType_eAudio;
-                        playbackPidSettings.pidTypeSettings.audio.simpleDecoder = _audioDecoder.GetDecoder();
-                        pidChannel = NEXUS_Playback_OpenPidChannel(Playback(), pid, &playbackPidSettings);
-                    } else if (pidChanType == VideoPidChannel) {
-                        playbackPidSettings.pidSettings.pidType = NEXUS_PidType_eVideo;
-                        playbackPidSettings.pidTypeSettings.video.codec = _videoDecoder.Codec();
-                        playbackPidSettings.pidTypeSettings.video.index = true;
-                        playbackPidSettings.pidTypeSettings.video.simpleDecoder = _videoDecoder.GetDecoder();
-                        pidChannel = NEXUS_Playback_OpenPidChannel(Playback(), pid, &playbackPidSettings);
-                    }
-                } else {
-                    pidChannel = NEXUS_PidChannel_Open(ParserBand(), pid, nullptr);
-
-                    NEXUS_SimpleStcChannelSettings& settings(Settings());
-                    if (settings.modeSettings.pcr.pidChannel == nullptr) {
-                        // If the PCR pid is not set, this is an Audio only stream, do the settings on the stcChannel !!
-                        int rc = NEXUS_SimpleStcChannel_SetSettings(_stcChannel, &settings);
-                    }
-                }
-                _pidChannel[pidChanType] = pidChannel;
-            }
-
-            return pidChannel;
         }
 
     private:
@@ -1688,6 +1609,7 @@ namespace Broadcast {
                             }
                         }
                     } else {
+                        TRACE_L1("Invalid Program _programId=%d", _programId);
                         _state = LOCKED;
                         updated = true;
                     }
@@ -1723,11 +1645,7 @@ namespace Broadcast {
                         if (_program.PCRPid() != streams.Pid()) {
                             // Seems like the PCRPid is not the video pid. Create a  PCR channel...
                             NEXUS_PidChannelHandle pidChannel;
-                            #if 1
-                            pidChannel = GetPidChannel(PcrPidChannel, _program.PCRPid());
-                            #else
-                            _pidChannel = NEXUS_PidChannel_Open(ParserBand(), _program.PCRPid(), nullptr);
-                            #endif
+                            pidChannel = OpenPidChannel(PcrPidChannel, _program.PCRPid());
                             _stcSettings.modeSettings.pcr.pidChannel = pidChannel;
                         }
 
@@ -1751,13 +1669,58 @@ namespace Broadcast {
         }
 
         void Close()
-        { TR2();
+        {
             _videoDecoder.Close();
             _audioDecoder.Close();
+            ClosePidChannel();
+        }
 
+        NEXUS_PidChannelHandle OpenPidChannel(PidChannelType pidChanType, uint16_t pid)
+        {
+            NEXUS_PidChannelHandle pidChannel = nullptr;
+
+            if (pidChanType > MaxPidChannel) {
+                return pidChannel;
+            }
+
+            if (_mode == ITuner::Playback) {
+                NEXUS_PlaybackPidChannelSettings playbackPidSettings;
+                NEXUS_Playback_GetDefaultPidChannelSettings(&playbackPidSettings);
+                if (pidChanType == AudioPidChannel) {
+                    playbackPidSettings.pidSettings.pidType = NEXUS_PidType_eAudio;
+                    playbackPidSettings.pidTypeSettings.audio.simpleDecoder = _audioDecoder.GetDecoder();
+                    pidChannel = NEXUS_Playback_OpenPidChannel(Playback(), pid, &playbackPidSettings);
+                } else if (pidChanType == VideoPidChannel) {
+                    playbackPidSettings.pidSettings.pidType = NEXUS_PidType_eVideo;
+                    playbackPidSettings.pidTypeSettings.video.codec = _videoDecoder.Codec();
+                    playbackPidSettings.pidTypeSettings.video.index = true;
+                    playbackPidSettings.pidTypeSettings.video.simpleDecoder = _videoDecoder.GetDecoder();
+                    pidChannel = NEXUS_Playback_OpenPidChannel(Playback(), pid, &playbackPidSettings);
+                }
+            } else {
+                pidChannel = NEXUS_PidChannel_Open(ParserBand(), pid, nullptr);
+
+                NEXUS_SimpleStcChannelSettings& settings(Settings());
+                if (settings.modeSettings.pcr.pidChannel == nullptr) {
+                    // If the PCR pid is not set, this is an Audio only stream, do the settings on the stcChannel !!
+                    int rc = NEXUS_SimpleStcChannel_SetSettings(_stcChannel, &settings);
+                }
+            }
+            _pidChannel[pidChanType] = pidChannel;
+            TRACE_L1("Opening Pid Channel type=%d pidChannel=%p", pidChanType, pidChannel);
+
+            return pidChannel;
+        }
+
+        void ClosePidChannel()
+        {
             for (int i = 0; i < MaxPidChannel; ++i) {
                 if (_pidChannel[i] != nullptr) {
-                    NEXUS_PidChannel_Close(_pidChannel[i]);
+                    if (_mode == ITuner::Playback) {
+                        NEXUS_Playback_ClosePidChannel(Playback(), _pidChannel[i]);
+                    } else {
+                        NEXUS_PidChannel_Close(_pidChannel[i]);
+                    }
                     _pidChannel[i] = nullptr;
                 }
             }
