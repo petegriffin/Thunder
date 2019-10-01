@@ -1,3 +1,4 @@
+#include "../core/core.h"
 #include "Definitions.h"
 #include "ProgramTable.h"
 #include "TunerAdministrator.h"
@@ -357,7 +358,9 @@ namespace Broadcast {
                                 stcSettings.modeSettings.pcr.pidChannel = _pidChannel;
                             }
                             rc = NEXUS_SimpleStcChannel_SetSettings(_parent.Channel(), &stcSettings);
-                            BDBG_ASSERT(!rc);
+                            if ( rc ) {
+                                TRACE_L1("NEXUS_SimpleStcChannel_SetSettings failed with %d.", rc);
+                            }
                         }
                         NEXUS_VideoDecoderSettings settings;
                         NEXUS_SimpleVideoDecoderStartSettings program;
@@ -366,7 +369,9 @@ namespace Broadcast {
                         settings.firstPtsPassed.callback = FirstPTSPassed;
                         settings.firstPtsPassed.context = this;
                         rc = NEXUS_SimpleVideoDecoder_SetSettings(_decoder, &settings);
-                        BDBG_ASSERT(!rc);
+                        if ( rc ) {
+                            TRACE_L1("NEXUS_SimpleVideoDecoder_SetSettings failed with %d.", rc);
+                        }
 
                         NEXUS_SimpleVideoDecoder_GetDefaultStartSettings(&program);
                         program.settings.pidChannel = _pidChannel;
@@ -385,6 +390,7 @@ namespace Broadcast {
 
                 return (result);
             }
+
             uint32_t Close()
             {
                 if (_decoder != nullptr) {
@@ -402,15 +408,19 @@ namespace Broadcast {
                 if (_pidChannel != nullptr) {
 
                     int rc = NEXUS_SimpleVideoDecoder_StopPrimerAndStartDecode(_decoder);
-                    BDBG_ASSERT(!rc);
-
+                    if ( rc ) {
+                        TRACE_L1("NEXUS_SimpleVideoDecoder_StopPrimerAndStartDecode failed with %d.", rc);
+                    }
                     result = (rc != 0 ? Core::ERROR_INPROGRESS : Core::ERROR_NONE);
                 }
 
                 return (result);
             }
+
             uint32_t Detach()
             {
+                uint32_t result = Core::ERROR_GENERAL;
+
                 if (_decoder != nullptr) {
 
                     NEXUS_SimpleVideoDecoder_StopAndFree(_decoder);
@@ -422,10 +432,13 @@ namespace Broadcast {
                     program.settings.codec = Codec(_streamType);
 
                     int rc = NEXUS_SimpleVideoDecoder_StartPrimer(_decoder, &program);
-                    BDBG_ASSERT(!rc);
+                    if ( rc ) {
+                        TRACE_L1("NEXUS_SimpleVideoDecoder_StartPrimer failed with %d.", rc);
+                    }
+                    result = (rc != 0 ? Core::ERROR_GENERAL : Core::ERROR_NONE);
                 }
 
-                return (Core::ERROR_NONE);
+                return (result);
             }
 
             NEXUS_SimpleVideoDecoderHandle GetDecoder()
@@ -788,7 +801,7 @@ namespace Broadcast {
                 NEXUS_Record_GetDefaultPidChannelSettings(&pidSettings);
                 pidSettings.recpumpSettings.pidType = NEXUS_PidType_eVideo;
                 pidSettings.recpumpSettings.pidTypeSettings.video.index = true;
-                pidSettings.recpumpSettings.pidTypeSettings.video.codec = Primer::Codec(_videoType);    //NEXUS_VideoCodec_eMpeg2;  // XXX: Codec from streamtype
+                pidSettings.recpumpSettings.pidTypeSettings.video.codec = Primer::Codec(_videoType);
                 rc = NEXUS_Record_AddPidChannel(record, _videoPidChannel, &pidSettings);
                 if ( rc == 0) {
                     /* H.264 DQT requires indexing of random access indicator using TPIT */
@@ -798,7 +811,7 @@ namespace Broadcast {
                         filter.config.mpeg.randomAccessIndicatorEnable = true;
                         filter.config.mpeg.randomAccessIndicatorCompValue = true;
                         rc = NEXUS_Recpump_SetTpitFilter(recpump, _videoPidChannel, &filter);
-                        BDBG_ASSERT(!rc);
+                        TRACE_L1("NEXUS_Recpump_SetTpitFilter Failed rc=%d", rc);
                     }
 
                     rc = NEXUS_Record_AddPidChannel(record, _audeoPidChannel, NULL);
@@ -921,7 +934,7 @@ namespace Broadcast {
                 TRACE_L1("%s", __FUNCTION__);
             }
 
-            void Create()
+            void Open()
             {
                 NEXUS_Error rc;
                 NEXUS_PlaypumpOpenSettings playpumpOpenSettings;
@@ -947,7 +960,7 @@ namespace Broadcast {
                 }
             }
 
-            void Destroy()
+            void Close()
             {
                 if (_playback != nullptr) {
                     NEXUS_Playback_Destroy(_playback);
@@ -1127,7 +1140,7 @@ namespace Broadcast {
             _mode = static_cast<ITuner::mode>(mode);
             TRACE_L1("%s: _mode=%d mode=%d _index=%d", __FUNCTION__, _mode, mode, _index);
             if (_mode == ITuner::Playback) {
-                _player.Create();
+                _player.Open();
             } else {
                 NEXUS_FrontendAcquireSettings frontendAcquireSettings;
                 NEXUS_Frontend_GetDefaultAcquireSettings(&frontendAcquireSettings);
@@ -1195,7 +1208,7 @@ namespace Broadcast {
             }
 
             if ( _mode == ITuner::Playback ) {
-                _player.Destroy();
+                _player.Close();
             }
             _callback = nullptr;
         }
@@ -1489,11 +1502,15 @@ namespace Broadcast {
         {
             uint32_t result = Core::ERROR_GENERAL;
 
-            // if background - LOCKED otherwise PREPARED/STREAMING
-            if ((_state == LOCKED) || (_state == PREPARED) || (_state == STREAMING)) {
-                result = _recorder.Start( _program );
+            if (_mode == ITuner::Record) {
+                // if background - LOCKED otherwise PREPARED/STREAMING
+                if ((_state == LOCKED) || (_state == PREPARED) || (_state == STREAMING)) {
+                    result = _recorder.Start( _program );
+                } else {
+                    TRACE_L1("Stream not prepared");
+                }
             } else {
-                TRACE_L1("Stream not prepared");
+                TRACE_L1("Not a Record instance");
             }
 
             return (result);
@@ -1501,27 +1518,39 @@ namespace Broadcast {
 
         virtual uint32_t StopRecord()
         {
-           _recorder.Stop();
+            if (_mode == ITuner::Record) {
+                _recorder.Stop();
 
-           Detach(0);
+                Detach(0);
+            } else {
+                TRACE_L1("Not a Record instance");
+            }
 
            return (Core::ERROR_NONE);
         }
         virtual uint32_t StartPlay(const string& id)
         {
-            uint32_t result = Core::ERROR_NONE;
+            uint32_t result = Core::ERROR_GENERAL;
 
-            result = _player.Start(id);
-            _state = STREAMING;
-            _callback->StateChange(this);
+            if (_mode == ITuner::Playback) {
+                result = _player.Start(id);
+                _state = STREAMING;
+                _callback->StateChange(this);
+            } else {
+                TRACE_L1("Not a Playback instance");
+            }
 
             return (result);
         }
 
         virtual uint32_t StopPlay()
         {
-           _player.Stop();
-            ClosePidChannel();
+            if (_mode == ITuner::Playback) {
+                _player.Stop();
+                ClosePidChannel();
+            } else {
+                TRACE_L1("Not a Playback instance");
+            }
 
             return (Core::ERROR_NONE);
         }
@@ -1704,6 +1733,9 @@ namespace Broadcast {
                 if (settings.modeSettings.pcr.pidChannel == nullptr) {
                     // If the PCR pid is not set, this is an Audio only stream, do the settings on the stcChannel !!
                     int rc = NEXUS_SimpleStcChannel_SetSettings(_stcChannel, &settings);
+                    if ( rc ) {
+                        TRACE_L1("NEXUS_SimpleStcChannel_SetSettings failed with %d.", rc);
+                    }
                 }
             }
             _pidChannel[pidChanType] = pidChannel;
