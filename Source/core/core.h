@@ -64,6 +64,7 @@
 #include "StopWatch.h"
 #include "Stream.h"
 #include "StreamJSON.h"
+#include "StreamMessagePack.h"
 #include "StreamText.h"
 #include "StreamTypeLengthValue.h"
 #include "Sync.h"

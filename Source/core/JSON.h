@@ -260,6 +260,83 @@ namespace Core {
 
             static constexpr uint8_t NullValue = 0xC0;
 
+            template <typename INSTANCEOBJECT>
+            static bool ToFile(Core::File& fileObject, const INSTANCEOBJECT& realObject)
+            {
+                bool completed = false;
+
+                if (fileObject.IsOpen()) {
+
+                    uint8_t buffer[1024];
+                    uint16_t loaded;
+                    uint16_t offset = 0;
+
+                    // Serialize object
+                    do {
+                        loaded = static_cast<const IMessagePack&>(realObject).Serialize(buffer, sizeof(buffer), offset);
+
+                        ASSERT(loaded <= sizeof(buffer));
+
+                    } while ((fileObject.Write(reinterpret_cast<const uint8_t*>(buffer), loaded) == loaded) && (loaded == sizeof(buffer)) && (offset != 0));
+
+                    completed = (offset == 0);
+                }
+
+                return (completed);
+            }
+
+            template <typename INSTANCEOBJECT>
+            static bool FromFile(Core::File& fileObject, INSTANCEOBJECT& realObject)
+            {
+                bool completed = false;
+
+                Core::OptionalType<Error> error;
+                if (fileObject.IsOpen()) {
+
+                    uint8_t buffer[1024];
+                    uint16_t readBytes;
+                    uint16_t loaded;
+                    uint16_t offset = 0;
+
+                    realObject.Clear();
+
+                    // Serialize object
+                    do {
+                        readBytes = static_cast<uint16_t>(fileObject.Read(reinterpret_cast<uint8_t*>(buffer), sizeof(buffer)));
+
+                        if (readBytes == 0) {
+                            loaded = ~0;
+                        } else {
+                            loaded = static_cast<IMessagePack&>(realObject).Deserialize(buffer, sizeof(buffer), offset);
+
+                            ASSERT(loaded <= readBytes);
+
+                            if (loaded != readBytes) {
+                                fileObject.Position(true, -(readBytes - loaded));
+                            }
+                        }
+
+                    } while ((loaded == readBytes) && (offset != 0));
+
+                    if (offset != 0) {
+                        realObject.Clear();
+                    }
+                    completed = (offset == 0);
+                }
+
+                return completed;
+            }
+
+            bool ToFile(Core::File& fileObject) const
+            {
+                return (Core::JSON::IMessagePack::ToFile(fileObject, *this));
+            }
+
+            bool FromFile(Core::File& fileObject)
+            {
+                return (Core::JSON::IMessagePack::FromFile(fileObject, *this));
+            }
+
             // JSON Serialization interface
             // --------------------------------------------------------------------------------
             virtual void Clear() = 0;
