@@ -2,6 +2,7 @@
 #define __JSON_H
 
 #include <map>
+#include <vector>
 
 #include "Enumerate.h"
 #include "FileSystem.h"
@@ -261,6 +262,49 @@ namespace Core {
             static constexpr uint8_t NullValue = 0xC0;
 
             template <typename INSTANCEOBJECT>
+            static bool ToBuffer(std::vector<uint8_t> stream, const INSTANCEOBJECT& realObject)
+            {
+                uint8_t buffer[1024];
+                uint16_t loaded;
+                uint16_t offset = 0;
+
+                stream.clear();
+                // Serialize object
+                do {
+                    loaded = static_cast<const IMessagePack&>(realObject).Serialize(buffer, sizeof(buffer), offset);
+
+                    ASSERT(loaded <= sizeof(buffer));
+                    DEBUG_VARIABLE(loaded);
+
+                    stream.reserve(stream.size() + loaded);
+                    stream.insert(stream.end(), buffer, buffer + loaded);
+                } while ((offset != 0) && (loaded == sizeof(buffer)));
+
+                return (offset == 0);
+            }
+            template <typename INSTANCEOBJECT>
+            static bool FromBuffer(const std::vector<uint8_t> stream, INSTANCEOBJECT& realObject)
+            {
+                uint16_t offset = 0;
+
+                realObject.Clear();
+
+                if (stream.size() != 0) {
+                    // Deserialize object
+                    uint16_t loaded = static_cast<IMessagePack&>(realObject).Deserialize(&stream[0], stream.size() + 1, offset);
+
+                    ASSERT(loaded <= (stream.size() + 1));
+                    DEBUG_VARIABLE(loaded);
+                }
+
+                if (offset) {
+                    realObject.Clear();
+                }
+
+                return (offset == 0);
+            }
+
+            template <typename INSTANCEOBJECT>
             static bool ToFile(Core::File& fileObject, const INSTANCEOBJECT& realObject)
             {
                 bool completed = false;
@@ -325,6 +369,16 @@ namespace Core {
                 }
 
                 return completed;
+            }
+
+            bool ToBuffer(std::vector<uint8_t> stream) const
+            {
+                return (Core::JSON::IMessagePack::ToBuffer(stream, *this));
+            }
+
+            bool FromBuffer(const std::vector<uint8_t> stream)
+            {
+                return (Core::JSON::IMessagePack::FromBuffer(stream, *this));
             }
 
             bool ToFile(Core::File& fileObject) const
