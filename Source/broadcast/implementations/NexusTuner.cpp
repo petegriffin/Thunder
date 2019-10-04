@@ -1548,6 +1548,9 @@ namespace Broadcast {
             if (_mode == ITuner::Playback) {
                 _player.Stop();
                 ClosePidChannel();
+
+                _state = IDLE;
+                _callback->StateChange(this);
             } else {
                 TRACE_L1("Not a Playback instance");
             }
