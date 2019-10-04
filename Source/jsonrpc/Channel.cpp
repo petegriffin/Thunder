@@ -4,25 +4,28 @@ namespace WPEFramework {
 
 namespace JSONRPC {
 
-    /* static */ Channel::FactoryImpl& Channel::FactoryImpl::Instance()
+    template <typename ACTUALSTREAM>
+    /* static */ FactoryImpl<ACTUALSTREAM>& FactoryImpl<ACTUALSTREAM>::Instance()
     {
-        static FactoryImpl& _singleton = Core::SingletonType<FactoryImpl>::Instance();
+        static FactoryImpl<ACTUALSTREAM>& _singleton = Core::SingletonType<FactoryImpl<ACTUALSTREAM>>::Instance();
 
         return (_singleton);
     }
 
-	uint64_t Channel::FactoryImpl::WatchDog::Timed(const uint64_t /* scheduledTime */) {
-        return (_client->Timed());
-	}
+    template <typename ACTUALSTREAM>
+    uint64_t FactoryImpl<ACTUALSTREAM>::WatchDog::Timed(const uint64_t /* scheduledTime */) {
+       return (_client->Timed());
+    }
 
-    class ChannelProxy : public Core::ProxyObject<Channel> {
+    template <typename ACTUALSTREAM>
+    class ChannelProxy : public Core::ProxyObject<ACTUALSTREAM> {
     private:
         ChannelProxy(const ChannelProxy&) = delete;
         ChannelProxy& operator=(const ChannelProxy&) = delete;
         ChannelProxy() = delete;
 
         ChannelProxy(const Core::NodeId& remoteNode, const string& callsign)
-            : Core::ProxyObject<Channel>(remoteNode, callsign)
+            : Core::ProxyObject<ACTUALSTREAM>(remoteNode, callsign)
         {
         }
 
@@ -31,7 +34,7 @@ namespace JSONRPC {
             Administrator(const Administrator&) = delete;
             Administrator& operator=(const Administrator&) = delete;
 
-            typedef std::map<const string, Channel*> CallsignMap;
+            typedef std::map<const string, ACTUALSTREAM*> CallsignMap;
 
             static Administrator& Instance()
             {
@@ -50,7 +53,7 @@ namespace JSONRPC {
             }
 
         public:
-            static Core::ProxyType<Channel> Instance(const Core::NodeId& remoteNode, const string& callsign)
+            static Core::ProxyType<ACTUALSTREAM> Instance(const Core::NodeId& remoteNode, const string& callsign)
             {
                 return (Instance().InstanceImpl(remoteNode, callsign));
             }
@@ -60,21 +63,21 @@ namespace JSONRPC {
             }
 
         private:
-            Core::ProxyType<Channel> InstanceImpl(const Core::NodeId& remoteNode, const string& callsign)
+            Core::ProxyType<ACTUALSTREAM> InstanceImpl(const Core::NodeId& remoteNode, const string& callsign)
             {
-                Core::ProxyType<Channel> result;
+                Core::ProxyType<ACTUALSTREAM> result;
 
                 _adminLock.Lock();
 
                 string searchLine = remoteNode.HostName() + '@' + callsign;
 
-                CallsignMap::iterator index(_callsignMap.find(searchLine));
+                typename CallsignMap::iterator index(_callsignMap.find(searchLine));
                 if (index != _callsignMap.end()) {
-                    result = Core::ProxyType<Channel>(*(index->second));
+                    result = Core::ProxyType<ACTUALSTREAM>(*(index->second));
                 } else {
                     ChannelProxy* entry = new (0) ChannelProxy(remoteNode, callsign);
                     _callsignMap[searchLine] = entry;
-                    result = Core::ProxyType<Channel>(*entry);
+                    result = Core::ProxyType<ACTUALSTREAM>(*entry);
                 }
                 _adminLock.Unlock();
 
@@ -95,7 +98,7 @@ namespace JSONRPC {
                 if (result == Core::ERROR_DESTRUCTION_SUCCEEDED) {
                     // Oke remove the entry from the MAP.
 
-                    CallsignMap::iterator index(_callsignMap.begin());
+                    typename CallsignMap::iterator index(_callsignMap.begin());
 
                     while ((index != _callsignMap.end()) && (&(*object) == index->second)) {
                         index++;
@@ -120,10 +123,10 @@ namespace JSONRPC {
         ~ChannelProxy()
         {
             // Guess we need to close
-            Channel::Close();
+            ACTUALSTREAM::Close();
         }
 
-        static Core::ProxyType<Channel> Instance(const Core::NodeId& remoteNode, const string& callsign)
+        static Core::ProxyType<ACTUALSTREAM> Instance(const Core::NodeId& remoteNode, const string& callsign)
         {
             return (Administrator::Instance(remoteNode, callsign));
         }
@@ -137,26 +140,28 @@ namespace JSONRPC {
     private:
         uint32_t ActualRelease() const
         {
-            return (Core::ProxyObject<Channel>::Release());
+            return (Core::ProxyObject<ACTUALSTREAM>::Release());
         }
         bool Open(const uint32_t waitTime)
         {
-            return (Channel::Open(waitTime));
+            return (ACTUALSTREAM::Open(waitTime));
         }
 
     private:
         Core::CriticalSection _adminLock;
     };
 
-    /* static */ Core::ProxyType<Channel> Channel::Instance(const Core::NodeId& remoteNode, const string& callsign)
+    template <typename ACTUALSTREAM>
+    /* static */ Core::ProxyType<ChannelJSON<ACTUALSTREAM>> ChannelJSON<ACTUALSTREAM>::Instance(const Core::NodeId& remoteNode, const string& callsign)
     {
-        return (ChannelProxy::Instance(remoteNode, callsign));
+        return (ChannelProxy<ChannelJSON<ACTUALSTREAM>>::Instance(remoteNode, callsign));
     }
 
-    void Channel::StateChange()
+    template <typename ACTUALSTREAM>
+    void ChannelJSON<ACTUALSTREAM>::StateChange()
     {
         _adminLock.Lock();
-        std::list<Client*>::iterator index(_observers.begin());
+        typename std::list<Client<ACTUALSTREAM>*>::iterator index(_observers.begin());
         while (index != _observers.end()) {
             if (_channel.IsOpen() == true) {
                 (*index)->Opened();
@@ -167,11 +172,12 @@ namespace JSONRPC {
         }
         _adminLock.Unlock();
     }
-    uint32_t Channel::Inbound(const Core::ProxyType<Core::JSONRPC::Message>& inbound)
+    template <typename ACTUALSTREAM>
+    uint32_t ChannelJSON<ACTUALSTREAM>::Inbound(const Core::ProxyType<Core::JSONRPC::Message>& inbound)
     {
         uint32_t result = Core::ERROR_UNAVAILABLE;
         _adminLock.Lock();
-        std::list<Client*>::iterator index(_observers.begin());
+        typename std::list<Client<ACTUALSTREAM>*>::iterator index(_observers.begin());
         while ((result != Core::ERROR_NONE) && (index != _observers.end())) {
             result = (*index)->Inbound(inbound);
             index++;

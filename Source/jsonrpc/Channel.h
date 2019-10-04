@@ -6,97 +6,103 @@ namespace WPEFramework {
 
 namespace JSONRPC {
 
+    template <typename ACTUALSTREAMTYPE>
     class Client;
 
     using namespace Core::TypeTraits;
 
-    class EXTERNAL Channel {
+    // -----------------------------------------------------------------------------------------------
+    // Create a resource allocator for all JSON objects used in these tests
+    // -----------------------------------------------------------------------------------------------
+    template <typename ACTUALSTREAM>
+    class EXTERNAL FactoryImpl {
     private:
-        // -----------------------------------------------------------------------------------------------
-        // Create a resource allocator for all JSON objects used in these tests
-        // -----------------------------------------------------------------------------------------------
-        class EXTERNAL FactoryImpl {
+        FactoryImpl(const FactoryImpl&) = delete;
+        FactoryImpl& operator=(const FactoryImpl&) = delete;
+
+        class EXTERNAL WatchDog {
         private:
-            FactoryImpl(const FactoryImpl&) = delete;
-            FactoryImpl& operator=(const FactoryImpl&) = delete;
+            WatchDog() = delete;
+            WatchDog& operator=(const WatchDog&) = delete;
 
-            class EXTERNAL WatchDog {
-            private:
-                WatchDog() = delete;
-                WatchDog& operator=(const WatchDog&) = delete;
-
-            public:
-                WatchDog(Client* client)
-                    : _client(client)
-                {
-                }
-                WatchDog(const WatchDog& copy)
-                    : _client(copy._client)
-                {
-                }
-                ~WatchDog()
-                {
-                }
-
-                bool operator==(const WatchDog& rhs) const
-                {
-                    return (rhs._client == _client);
-                }
-                bool operator!=(const WatchDog& rhs) const
-                {
-                    return (!operator==(rhs));
-                }
-
-            public:
-                uint64_t Timed(const uint64_t scheduledTime);
-
-            private:
-                Client* _client;
-            };
-
-            friend Core::SingletonType<FactoryImpl>;
-
-            FactoryImpl()
-                : _jsonRPCFactory(2)
-                , _watchDog(Core::Thread::DefaultStackSize(), _T("JSONRPCCleaner"))
+        public:
+            WatchDog(Client<ACTUALSTREAM>* client)
+                : _client(client)
             {
+            }
+            WatchDog(const WatchDog& copy)
+                : _client(copy._client)
+            {
+            }
+            ~WatchDog()
+            {
+            }
+
+            bool operator==(const WatchDog& rhs) const
+            {
+                return (rhs._client == _client);
+            }
+            bool operator!=(const WatchDog& rhs) const
+            {
+                return (!operator==(rhs));
             }
 
         public:
-            static FactoryImpl& Instance();
-            ~FactoryImpl()
-            {
-            }
-
-        public:
-            Core::ProxyType<Core::JSONRPC::Message> Element(const string&)
-            {
-                return (_jsonRPCFactory.Element());
-            }
-            void Trigger(const uint64_t& time, Client* client)
-            {
-                _watchDog.Trigger(time, client);
-            }
-            void Revoke(Client* client)
-            {
-                _watchDog.Revoke(client);
-            }
+            uint64_t Timed(const uint64_t scheduledTime);
 
         private:
-            Core::ProxyPoolType<Core::JSONRPC::Message> _jsonRPCFactory;
-            Core::TimerType<WatchDog> _watchDog;
+            Client<ACTUALSTREAM>* _client;
         };
 
-        class ChannelImpl : public Core::StreamJSONType<Web::WebSocketClientType<Core::SocketStream>, FactoryImpl&> {
+        friend Core::SingletonType<FactoryImpl>;
+
+        FactoryImpl()
+            : _jsonRPCFactory(2)
+            , _watchDog(Core::Thread::DefaultStackSize(), _T("JSONRPCCleaner"))
+        {
+        }
+
+    public:
+        static FactoryImpl& Instance();
+        ~FactoryImpl()
+        {
+        }
+
+    public:
+        Core::ProxyType<Core::JSONRPC::Message> Element(const string&)
+        {
+            return (_jsonRPCFactory.Element());
+        }
+        void Trigger(const uint64_t& time, Client<ACTUALSTREAM>* client)
+        {
+            _watchDog.Trigger(time, client);
+        }
+        void Revoke(Client<ACTUALSTREAM>* client)
+        {
+            _watchDog.Revoke(client);
+        }
+
+    private:
+        Core::ProxyPoolType<Core::JSONRPC::Message> _jsonRPCFactory;
+        Core::TimerType<WatchDog> _watchDog;
+    };
+
+
+    template <typename ACTUALSTREAM>
+    class EXTERNAL ChannelJSON {
+    private:
+        public:
+
+        class ChannelImpl : public Core::StreamJSONType<Web::WebSocketClientType<Core::SocketStream>, FactoryImpl<ACTUALSTREAM>&> {
         private:
             ChannelImpl(const ChannelImpl&) = delete;
             ChannelImpl& operator=(const ChannelImpl&) = delete;
 
-            typedef Core::StreamJSONType<Web::WebSocketClientType<Core::SocketStream>, FactoryImpl&> BaseClass;
+            typedef Core::StreamJSONType<Web::WebSocketClientType<Core::SocketStream>, FactoryImpl<ACTUALSTREAM>&> BaseClass;
 
         public:
-            ChannelImpl(Channel& parent, const Core::NodeId& remoteNode, const string& callsign)
-                : BaseClass(5, FactoryImpl::Instance(), callsign, _T("JSON"), "", "", false, false, false, remoteNode.AnyInterface(), remoteNode, 256, 256)
+            ChannelImpl(ChannelJSON& parent, const Core::NodeId& remoteNode, const string& callsign)
+                : BaseClass(5, FactoryImpl<ACTUALSTREAM>::Instance(), callsign, _T("JSON"), "", "", false, false, false, remoteNode.AnyInterface(), remoteNode, 256, 256)
                 , _parent(parent)
             {
             }
@@ -139,54 +145,60 @@ namespace JSONRPC {
             }
 
         private:
-            Channel& _parent;
+            ChannelJSON& _parent;
         };
 
+
+    public:
+        ChannelJSON(const ChannelJSON&) = delete;
+        ChannelJSON& operator=(const ChannelJSON&) = delete;
+
+
     protected:
-        Channel(const Core::NodeId& remoteNode, const string& callsign)
+        ChannelJSON(const Core::NodeId& remoteNode, const string& callsign)
             : _channel(*this, remoteNode, callsign)
             , _sequence(0)
         {
         }
 
     public:
-        virtual ~Channel()
+        virtual ~ChannelJSON()
         {
         }
-        static Core::ProxyType<Channel> Instance(const Core::NodeId& remoteNode, const string& callsign);
+        static Core::ProxyType<ChannelJSON> Instance(const Core::NodeId& remoteNode, const string& callsign);
 
     public:
-        static void Trigger(const uint64_t& time, Client* client)
+        static void Trigger(const uint64_t& time, Client<ACTUALSTREAM>* client)
         {
-            FactoryImpl::Instance().Trigger(time, client);
+            FactoryImpl<ACTUALSTREAM>::Instance().Trigger(time, client);
         }
         static Core::ProxyType<Core::JSONRPC::Message> Message()
         {
-            return (FactoryImpl::Instance().Element(string()));
+            return (FactoryImpl<ACTUALSTREAM>::Instance().Element(string()));
         }
         bool IsOperational() const
         {
-            return (const_cast<Channel&>(*this).Open(0));
+            return (const_cast<ChannelJSON&>(*this).Open(0));
         }
         uint32_t Sequence() const
         {
             return (++_sequence);
         }
-        void Register(Client& client)
+        void Register(Client<ACTUALSTREAM>& client)
         {
             _adminLock.Lock();
             ASSERT(std::find(_observers.begin(), _observers.end(), &client) == _observers.end());
             _observers.push_back(&client);
             _adminLock.Unlock();
         }
-        void Unregister(Client& client)
+        void Unregister(Client<ACTUALSTREAM>& client)
         {
             _adminLock.Lock();
-            std::list<Client*>::iterator index(std::find(_observers.begin(), _observers.end(), &client));
+            typename std::list<Client<ACTUALSTREAM>*>::iterator index(std::find(_observers.begin(), _observers.end(), &client));
             if (index != _observers.end()) {
                 _observers.erase(index);
             }
-            FactoryImpl::Instance().Revoke(&client);
+            FactoryImpl<ACTUALSTREAM>::Instance().Revoke(&client);
             _adminLock.Unlock();
         }
         void Submit(const Core::ProxyType<Core::JSON::IElement>& message)
@@ -214,19 +226,20 @@ namespace JSONRPC {
 
     private:
         Core::CriticalSection _adminLock;
-        ChannelImpl _channel;
+        ACTUALSTREAM _channel;
         mutable std::atomic<uint32_t> _sequence;
-        std::list<Client*> _observers;
+        std::list<Client<ACTUALSTREAM>*> _observers;
     };
 
+    template <typename ACTUALSTREAMTYPE>
     class EXTERNAL Client {
+    public:
     private:
         Client() = delete;
         Client(const Client&) = delete;
         Client& operator=(Client&) = delete;
 
         typedef std::function<void(const Core::JSONRPC::Message&)> CallbackFunction;
-
         class Entry {
         private:
             Entry(const Entry&) = delete;
@@ -363,7 +376,7 @@ namespace JSONRPC {
         Client(const string& remoteCallsign, const TCHAR* localCallsign, const bool directed = false)
             : _adminLock()
             , _connectId(RemoteNodeId())
-            , _channel(Channel::Instance(_connectId, string("/jsonrpc/") + (directed && !remoteCallsign.empty() ? remoteCallsign : "Controller")))
+            , _channel(ACTUALSTREAMTYPE::Instance(_connectId, string("/jsonrpc/") + (directed && !remoteCallsign.empty() ? remoteCallsign : "Controller")))
             , _handler([&](const uint32_t, const string&, const string&) { }, { DetermineVersion(remoteCallsign) })
             , _callsign((!directed || remoteCallsign.empty()) ? remoteCallsign : "")
             , _localSpace(localCallsign)
@@ -375,7 +388,7 @@ namespace JSONRPC {
         Client(const string& remoteCallsign, const uint8_t version, const bool directed = false)
             : _adminLock()
             , _connectId(RemoteNodeId())
-            , _channel(Channel::Instance(_connectId, string("/jsonrpc/") + (directed && !remoteCallsign.empty() ? remoteCallsign : "Controller")))
+            , _channel(ACTUALSTREAMTYPE::Instance(_connectId, string("/jsonrpc/") + (directed && !remoteCallsign.empty() ? remoteCallsign : "Controller")))
             , _handler([&](const uint32_t, const string&, const string&) {}, { version })
             , _callsign((!directed || remoteCallsign.empty()) ? remoteCallsign : "")
             , _localSpace()
@@ -403,7 +416,7 @@ namespace JSONRPC {
             // Lets see if some callback are expire. If so trigger and remove...
             _adminLock.Lock();
 
-            PendingMap::iterator index = _pendingQueue.begin();
+            typename PendingMap::iterator index = _pendingQueue.begin();
 
             while (index != _pendingQueue.end()) {
 
@@ -413,7 +426,7 @@ namespace JSONRPC {
                     index++;
                 }
             }
-            _scheduledTime = (result != static_cast<uint64_t>(~0) ? result : 0);
+            typename _scheduledTime = (result != static_cast<uint64_t>(~0) ? result : 0);
 
             _adminLock.Unlock();
 
@@ -685,7 +698,7 @@ namespace JSONRPC {
         }
 
     private:
-        friend class Channel;
+        template<typename ACTUALSTREAM> friend class ChannelJSON;
 
         template <typename HANDLER>
         uint32_t InternalInvoke(const ::TemplateIntToType<0>&, const uint32_t waitTime, const string& method, const string& parameters, const HANDLER& callback)
@@ -786,7 +799,7 @@ namespace JSONRPC {
 
                 result = Core::ERROR_ASYNC_FAILED;
 
-                Core::ProxyType<Core::JSONRPC::Message> message(Channel::Message());
+                Core::ProxyType<Core::JSONRPC::Message> message(ACTUALSTREAMTYPE::Message());
                 uint32_t id = _channel->Sequence();
                 message->Id = id;
                 if (_callsign.empty() == false) {
@@ -800,7 +813,7 @@ namespace JSONRPC {
 
                 _adminLock.Lock();
 
-                std::pair<PendingMap::iterator, bool> newElement = _pendingQueue.emplace(std::piecewise_construct,
+                std::pair<typename PendingMap::iterator, bool> newElement = _pendingQueue.emplace(std::piecewise_construct,
                     std::forward_as_tuple(id),
                     std::forward_as_tuple());
                 ASSERT(newElement.second == true);
@@ -844,7 +857,7 @@ namespace JSONRPC {
 
                 result = Core::ERROR_ASYNC_FAILED;
 
-                Core::ProxyType<Core::JSONRPC::Message> message(Channel::Message());
+                Core::ProxyType<Core::JSONRPC::Message> message(ACTUALSTREAMTYPE::Message());
                 uint32_t id = _channel->Sequence();
                 message->Id = id;
                 if (_callsign.empty() == false) {
@@ -858,7 +871,7 @@ namespace JSONRPC {
 
                 _adminLock.Lock();
 
-                std::pair<PendingMap::iterator, bool> newElement = _pendingQueue.emplace(std::piecewise_construct,
+                std::pair<typename PendingMap::iterator, bool> newElement = _pendingQueue.emplace(std::piecewise_construct,
                     std::forward_as_tuple(id),
                     std::forward_as_tuple(waitTime, response));
                 ASSERT(newElement.second == true);
@@ -872,7 +885,7 @@ namespace JSONRPC {
                     message.Release();
                     if ((_scheduledTime == 0) || (_scheduledTime > newElement.first->second.Expiry())) {
                         _scheduledTime = newElement.first->second.Expiry();
-                        Channel::Trigger(_scheduledTime, this);
+                        ACTUALSTREAMTYPE::Trigger(_scheduledTime, this);
                     }
                 }
 
@@ -895,7 +908,7 @@ namespace JSONRPC {
                 _adminLock.Lock();
 
                 // See if we issued this..
-                PendingMap::iterator index = _pendingQueue.find(inbound->Id.Value());
+                typename  PendingMap::iterator index = _pendingQueue.find(inbound->Id.Value());
 
                 if (index != _pendingQueue.end()) {
 
@@ -924,12 +937,14 @@ namespace JSONRPC {
     private:
         Core::CriticalSection _adminLock;
         Core::NodeId _connectId;
-        Core::ProxyType<Channel> _channel;
+        Core::ProxyType<ACTUALSTREAMTYPE> _channel;
         Core::JSONRPC::Handler _handler;
         string _callsign;
         string _localSpace;
         PendingMap _pendingQueue;
         uint64_t _scheduledTime;
     };
+    template<typename ACTUALSTREAMTYPE> using ChannelJSONType = ChannelJSON<ACTUALSTREAMTYPE>;
+
 }
 } // namespace WPEFramework::JSONRPC
