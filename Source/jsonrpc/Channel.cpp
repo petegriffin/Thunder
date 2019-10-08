@@ -4,16 +4,14 @@ namespace WPEFramework {
 
 namespace JSONRPC {
 
-    template <typename ACTUALSTREAM>
-    /* static */ FactoryImpl<ACTUALSTREAM>& FactoryImpl<ACTUALSTREAM>::Instance()
+    /* static */ FactoryImpl& FactoryImpl::Instance()
     {
-        static FactoryImpl<ACTUALSTREAM>& _singleton = Core::SingletonType<FactoryImpl<ACTUALSTREAM>>::Instance();
+        static FactoryImpl& _singleton = Core::SingletonType<FactoryImpl>::Instance();
 
         return (_singleton);
     }
 
-    template <typename ACTUALSTREAM>
-    uint64_t FactoryImpl<ACTUALSTREAM>::WatchDog::Timed(const uint64_t /* scheduledTime */) {
+    uint64_t FactoryImpl::WatchDog::Timed(const uint64_t /* scheduledTime */) {
        return (_client->Timed());
     }
 
@@ -151,17 +149,15 @@ namespace JSONRPC {
         Core::CriticalSection _adminLock;
     };
 
-    template <typename ACTUALSTREAM>
-    /* static */ Core::ProxyType<ChannelJSON<ACTUALSTREAM>> ChannelJSON<ACTUALSTREAM>::Instance(const Core::NodeId& remoteNode, const string& callsign)
+    /* static */ Core::ProxyType<ChannelJSON> ChannelJSON::Instance(const Core::NodeId& remoteNode, const string& callsign)
     {
-        return (ChannelProxy<ChannelJSON<ACTUALSTREAM>>::Instance(remoteNode, callsign));
+        return (ChannelProxy<ChannelJSON>::Instance(remoteNode, callsign));
     }
 
-    template <typename ACTUALSTREAM>
-    void ChannelJSON<ACTUALSTREAM>::StateChange()
+    void ChannelJSON::StateChange()
     {
         _adminLock.Lock();
-        typename std::list<Client<ACTUALSTREAM>*>::iterator index(_observers.begin());
+        typename std::list<IClient*>::iterator index(_observers.begin());
         while (index != _observers.end()) {
             if (_channel.IsOpen() == true) {
                 (*index)->Opened();
@@ -172,12 +168,11 @@ namespace JSONRPC {
         }
         _adminLock.Unlock();
     }
-    template <typename ACTUALSTREAM>
-    uint32_t ChannelJSON<ACTUALSTREAM>::Inbound(const Core::ProxyType<Core::JSONRPC::Message>& inbound)
+    uint32_t ChannelJSON::Inbound(const Core::ProxyType<Core::JSONRPC::Message>& inbound)
     {
         uint32_t result = Core::ERROR_UNAVAILABLE;
         _adminLock.Lock();
-        typename std::list<Client<ACTUALSTREAM>*>::iterator index(_observers.begin());
+        typename std::list<IClient*>::iterator index(_observers.begin());
         while ((result != Core::ERROR_NONE) && (index != _observers.end())) {
             result = (*index)->Inbound(inbound);
             index++;
