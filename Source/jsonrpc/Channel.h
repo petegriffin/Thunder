@@ -93,19 +93,21 @@ namespace JSONRPC {
     };
 
 
-    class EXTERNAL ChannelJSON {
+    template <typename INTERFACE>
+    class EXTERNAL Channel {
     private:
         public:
 
-        class ChannelImpl : public Core::StreamJSONType<Web::WebSocketClientType<Core::SocketStream>, FactoryImpl&> {
+        template <typename INTERFACETYPE>
+        class ChannelImpl : public Core::StreamJSONType<Web::WebSocketClientType<Core::SocketStream>, FactoryImpl&, INTERFACETYPE> {
         private:
             ChannelImpl(const ChannelImpl&) = delete;
             ChannelImpl& operator=(const ChannelImpl&) = delete;
 
-            typedef Core::StreamJSONType<Web::WebSocketClientType<Core::SocketStream>, FactoryImpl&> BaseClass;
+            typedef Core::StreamJSONType<Web::WebSocketClientType<Core::SocketStream>, FactoryImpl&, INTERFACETYPE> BaseClass;
 
         public:
-            ChannelImpl(ChannelJSON& parent, const Core::NodeId& remoteNode, const string& callsign)
+            ChannelImpl(Channel& parent, const Core::NodeId& remoteNode, const string& callsign)
                 : BaseClass(5, FactoryImpl::Instance(), callsign, _T("JSON"), "", "", false, false, false, remoteNode.AnyInterface(), remoteNode, 256, 256)
                 , _parent(parent)
             {
@@ -149,27 +151,27 @@ namespace JSONRPC {
             }
 
         private:
-            ChannelJSON& _parent;
+            Channel& _parent;
         };
 
 
     public:
-        ChannelJSON(const ChannelJSON&) = delete;
-        ChannelJSON& operator=(const ChannelJSON&) = delete;
+        Channel(const Channel&) = delete;
+        Channel& operator=(const Channel&) = delete;
 
 
     protected:
-        ChannelJSON(const Core::NodeId& remoteNode, const string& callsign)
+        Channel(const Core::NodeId& remoteNode, const string& callsign)
             : _channel(*this, remoteNode, callsign)
             , _sequence(0)
         {
         }
 
     public:
-        virtual ~ChannelJSON()
+        virtual ~Channel()
         {
         }
-        static Core::ProxyType<ChannelJSON> Instance(const Core::NodeId& remoteNode, const string& callsign);
+        static Core::ProxyType<Channel<INTERFACE>> Instance(const Core::NodeId& remoteNode, const string& callsign);
 
     public:
         static void Trigger(const uint64_t& time, IClient* client)
@@ -182,7 +184,7 @@ namespace JSONRPC {
         }
         bool IsOperational() const
         {
-            return (const_cast<ChannelJSON&>(*this).Open(0));
+            return (const_cast<Channel&>(*this).Open(0));
         }
         uint32_t Sequence() const
         {
@@ -230,12 +232,12 @@ namespace JSONRPC {
 
     private:
         Core::CriticalSection _adminLock;
-        ChannelImpl _channel;
+        ChannelImpl<INTERFACE> _channel;
         mutable std::atomic<uint32_t> _sequence;
         std::list<IClient*> _observers;
     };
 
-    template <typename ACTUALSTREAMTYPE>
+    template <typename INTERFACE>
     class EXTERNAL Client : public IClient {
     public:
     private:
@@ -380,7 +382,7 @@ namespace JSONRPC {
         Client(const string& remoteCallsign, const TCHAR* localCallsign, const bool directed = false)
             : _adminLock()
             , _connectId(RemoteNodeId())
-            , _channel(ACTUALSTREAMTYPE::Instance(_connectId, string("/jsonrpc/") + (directed && !remoteCallsign.empty() ? remoteCallsign : "Controller")))
+            , _channel(Channel<INTERFACE>::Instance(_connectId, string("/jsonrpc/") + ((directed && !remoteCallsign.empty()) ? remoteCallsign : "Controller")))
             , _handler([&](const uint32_t, const string&, const string&) { }, { DetermineVersion(remoteCallsign) })
             , _callsign((!directed || remoteCallsign.empty()) ? remoteCallsign : "")
             , _localSpace(localCallsign)
@@ -392,7 +394,7 @@ namespace JSONRPC {
         Client(const string& remoteCallsign, const uint8_t version, const bool directed = false)
             : _adminLock()
             , _connectId(RemoteNodeId())
-            , _channel(ACTUALSTREAMTYPE::Instance(_connectId, string("/jsonrpc/") + (directed && !remoteCallsign.empty() ? remoteCallsign : "Controller")))
+            , _channel(Channel<INTERFACE>::Instance(_connectId, string("/jsonrpc/") + (directed && !remoteCallsign.empty() ? remoteCallsign : "Controller")))
             , _handler([&](const uint32_t, const string&, const string&) {}, { version })
             , _callsign((!directed || remoteCallsign.empty()) ? remoteCallsign : "")
             , _localSpace()
@@ -702,7 +704,7 @@ namespace JSONRPC {
         }
 
     private:
-        friend class ChannelJSON;
+        template <typename INTERFACETYPE> friend class Channel;
 
         template <typename HANDLER>
         uint32_t InternalInvoke(const ::TemplateIntToType<0>&, const uint32_t waitTime, const string& method, const string& parameters, const HANDLER& callback)
@@ -803,7 +805,7 @@ namespace JSONRPC {
 
                 result = Core::ERROR_ASYNC_FAILED;
 
-                Core::ProxyType<Core::JSONRPC::Message> message(ACTUALSTREAMTYPE::Message());
+                Core::ProxyType<Core::JSONRPC::Message> message(Channel<INTERFACE>::Message());
                 uint32_t id = _channel->Sequence();
                 message->Id = id;
                 if (_callsign.empty() == false) {
@@ -861,7 +863,7 @@ namespace JSONRPC {
 
                 result = Core::ERROR_ASYNC_FAILED;
 
-                Core::ProxyType<Core::JSONRPC::Message> message(ACTUALSTREAMTYPE::Message());
+                Core::ProxyType<Core::JSONRPC::Message> message(Channel<INTERFACE>::Message());
                 uint32_t id = _channel->Sequence();
                 message->Id = id;
                 if (_callsign.empty() == false) {
@@ -889,7 +891,7 @@ namespace JSONRPC {
                     message.Release();
                     if ((_scheduledTime == 0) || (_scheduledTime > newElement.first->second.Expiry())) {
                         _scheduledTime = newElement.first->second.Expiry();
-                        ACTUALSTREAMTYPE::Trigger(_scheduledTime, (IClient*)this);
+                        Channel<INTERFACE>::Trigger(_scheduledTime, (IClient*)this);
                     }
                 }
 
@@ -941,14 +943,180 @@ namespace JSONRPC {
     private:
         Core::CriticalSection _adminLock;
         Core::NodeId _connectId;
-        Core::ProxyType<ACTUALSTREAMTYPE> _channel;
+        Core::ProxyType<Channel<INTERFACE>> _channel;
         Core::JSONRPC::Handler _handler;
         string _callsign;
         string _localSpace;
         PendingMap _pendingQueue;
         uint64_t _scheduledTime;
     };
-    template<typename ACTUALSTREAMTYPE> using ChannelJSONType = ChannelJSON;
 
+    template <typename INTERFACE>
+    class ChannelProxy : public Core::ProxyObject<Channel<INTERFACE>> {
+    private:
+        ChannelProxy(const ChannelProxy&) = delete;
+        ChannelProxy& operator=(const ChannelProxy&) = delete;
+        ChannelProxy() = delete;
+
+        ChannelProxy(const Core::NodeId& remoteNode, const string& callsign)
+            : Core::ProxyObject<Channel<INTERFACE>>(remoteNode, callsign)
+        {
+        }
+
+        class Administrator {
+        private:
+            Administrator(const Administrator&) = delete;
+            Administrator& operator=(const Administrator&) = delete;
+
+            typedef std::map<const string, Channel<INTERFACE>*> CallsignMap;
+
+            static Administrator& Instance()
+            {
+                static Administrator& _instance = Core::SingletonType<Administrator>::Instance();
+                return (_instance);
+            }
+
+        public:
+            Administrator()
+                : _adminLock()
+                , _callsignMap()
+            {
+            }
+            ~Administrator()
+            {
+            }
+
+        public:
+            static Core::ProxyType<Channel<INTERFACE>> Instance(const Core::NodeId& remoteNode, const string& callsign)
+            {
+                return (Instance().InstanceImpl(remoteNode, callsign));
+            }
+            static uint32_t Release(ChannelProxy* object)
+            {
+                return (Instance().ReleaseImpl(object));
+            }
+        private:
+            Core::ProxyType<Channel<INTERFACE>> InstanceImpl(const Core::NodeId& remoteNode, const string& callsign)
+            {
+                Core::ProxyType<Channel<INTERFACE>> result;
+
+                _adminLock.Lock();
+
+                string searchLine = remoteNode.HostName() + '@' + callsign;
+
+                typename CallsignMap::iterator index(_callsignMap.find(searchLine));
+                if (index != _callsignMap.end()) {
+                    result = Core::ProxyType<Channel<INTERFACE>>(*(index->second));
+                } else {
+                    ChannelProxy* entry = new (0) ChannelProxy(remoteNode, callsign);
+                    _callsignMap[searchLine] = entry;
+                    result = Core::ProxyType<Channel<INTERFACE>>(*entry);
+                }
+                _adminLock.Unlock();
+
+                ASSERT(result.IsValid() == true);
+
+                if (result.IsValid() == true) {
+                    static_cast<ChannelProxy&>(*result).Open(100);
+                }
+
+                return (result);
+            }
+            uint32_t ReleaseImpl(ChannelProxy* object)
+            {
+                _adminLock.Lock();
+
+                uint32_t result = object->ActualRelease();
+
+                if (result == Core::ERROR_DESTRUCTION_SUCCEEDED) {
+                    // Oke remove the entry from the MAP.
+
+                    typename CallsignMap::iterator index(_callsignMap.begin());
+
+                    while ((index != _callsignMap.end()) && (&(*object) == index->second)) {
+                        index++;
+                    }
+
+                    if (index != _callsignMap.end()) {
+                        _callsignMap.erase(index);
+                    }
+                }
+
+                _adminLock.Unlock();
+
+                return (Core::ERROR_DESTRUCTION_SUCCEEDED);
+            }
+
+        private:
+            Core::CriticalSection _adminLock;
+            CallsignMap _callsignMap;
+        };
+public:
+        ~ChannelProxy()
+        {
+            // Guess we need to close
+            Channel<INTERFACE>::Close();
+        }
+
+        static Core::ProxyType<Channel<INTERFACE>> Instance(const Core::NodeId& remoteNode, const string& callsign)
+        {
+            return (Administrator::Instance(remoteNode, callsign));
+        }
+
+    public:
+        virtual uint32_t Release() const override
+        {
+            return (Administrator::Release(const_cast<ChannelProxy*>(this)));
+        }
+
+    private:
+        uint32_t ActualRelease() const
+        {
+            return (Core::ProxyObject<Channel<INTERFACE>>::Release());
+        }
+        bool Open(const uint32_t waitTime)
+        {
+            return (Channel<INTERFACE>::Open(waitTime));
+        }
+
+    private:
+        Core::CriticalSection _adminLock;
+    };
+
+    template <typename INTERFACE>
+    /* static */ Core::ProxyType<Channel<INTERFACE>> Channel<INTERFACE>::Instance(const Core::NodeId& remoteNode, const string& callsign)
+    {
+        return static_cast<Core::ProxyType<Channel<INTERFACE>>>(ChannelProxy<Channel<INTERFACE>>::Instance(remoteNode, callsign));
+    }
+
+    template <typename INTERFACE>
+    void Channel<INTERFACE>::StateChange()
+    {
+        _adminLock.Lock();
+        typename std::list<IClient*>::iterator index(_observers.begin());
+        while (index != _observers.end()) {
+            if (_channel.IsOpen() == true) {
+                (*index)->Opened();
+            } else {
+                (*index)->Closed();
+            }
+            index++;
+        }
+        _adminLock.Unlock();
+    }
+    template <typename INTERFACE>
+    uint32_t Channel<INTERFACE>::Inbound(const Core::ProxyType<Core::JSONRPC::Message>& inbound)
+    {
+        uint32_t result = Core::ERROR_UNAVAILABLE;
+        _adminLock.Lock();
+        typename std::list<IClient*>::iterator index(_observers.begin());
+        while ((result != Core::ERROR_NONE) && (index != _observers.end())) {
+            result = (*index)->Inbound(inbound);
+            index++;
+        }
+        _adminLock.Unlock();
+
+        return (result);
+    }
 }
 } // namespace WPEFramework::JSONRPC

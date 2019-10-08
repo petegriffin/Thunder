@@ -8,10 +8,10 @@
 
 namespace WPEFramework {
 namespace Core {
-    template <typename SOURCE, typename ALLOCATOR>
+    template <typename SOURCE, typename ALLOCATOR, typename INTERFACE = JSON::IElement>
     class StreamJSONType {
     private:
-        typedef StreamJSONType<SOURCE, ALLOCATOR> ParentClass;
+        typedef StreamJSONType<SOURCE, ALLOCATOR, INTERFACE> ParentClass;
 
 		class SerializerImpl {
         public:
@@ -182,8 +182,8 @@ namespace Core {
         typedef StreamTextType<SOURCE, ALLOCATOR> BaseClass;
 
     public:
-        StreamJSONType(const StreamJSONType<SOURCE, ALLOCATOR>&) = delete;
-        StreamJSONType<SOURCE, ALLOCATOR>& operator=(const StreamJSONType<SOURCE, ALLOCATOR>&) = delete;
+        StreamJSONType(const StreamJSONType<SOURCE, ALLOCATOR, INTERFACE>&) = delete;
+        StreamJSONType<SOURCE, ALLOCATOR, INTERFACE>& operator=(const StreamJSONType<SOURCE, ALLOCATOR, INTERFACE>&) = delete;
 
 #ifdef __WIN32__
 #pragma warning(disable : 4355)
