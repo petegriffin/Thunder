@@ -99,15 +99,15 @@ namespace JSONRPC {
         public:
 
         template <typename INTERFACETYPE>
-        class ChannelImpl : public Core::StreamJSONType<Web::WebSocketClientType<Core::SocketStream>, FactoryImpl&, INTERFACETYPE> {
+        class ChannelImpl : public Core::StreamJSONType<INTERFACETYPE, Web::WebSocketClientType<Core::SocketStream>, FactoryImpl&> {
         private:
             ChannelImpl(const ChannelImpl&) = delete;
             ChannelImpl& operator=(const ChannelImpl&) = delete;
 
-            typedef Core::StreamJSONType<Web::WebSocketClientType<Core::SocketStream>, FactoryImpl&, INTERFACETYPE> BaseClass;
+            typedef Core::StreamJSONType<INTERFACETYPE, Web::WebSocketClientType<Core::SocketStream>, FactoryImpl&> BaseClass;
 
         public:
-            ChannelImpl(Channel& parent, const Core::NodeId& remoteNode, const string& callsign)
+            ChannelImpl(Channel<INTERFACETYPE>& parent, const Core::NodeId& remoteNode, const string& callsign)
                 : BaseClass(5, FactoryImpl::Instance(), callsign, _T("JSON"), "", "", false, false, false, remoteNode.AnyInterface(), remoteNode, 256, 256)
                 , _parent(parent)
             {
@@ -117,7 +117,7 @@ namespace JSONRPC {
             }
 
         public:
-            virtual void Received(Core::ProxyType<Core::JSON::IElement>& jsonObject) override
+            virtual void Received(Core::ProxyType<INTERFACETYPE>& jsonObject) override
             {
                 Core::ProxyType<Core::JSONRPC::Message> inbound(Core::proxy_cast<Core::JSONRPC::Message>(jsonObject));
 
@@ -127,7 +127,7 @@ namespace JSONRPC {
                     _parent.Inbound(inbound);
                 }
             }
-            virtual void Send(Core::ProxyType<Core::JSON::IElement>& jsonObject) override
+            virtual void Send(Core::ProxyType<INTERFACETYPE>& jsonObject) override
             {
 #ifdef __DEBUG__
                 Core::ProxyType<Core::JSONRPC::Message> inbound(Core::proxy_cast<Core::JSONRPC::Message>(jsonObject));
@@ -135,9 +135,12 @@ namespace JSONRPC {
                 ASSERT(inbound.IsValid() == true);
 
                 if (inbound.IsValid() == true) {
-                    string message;
-                    inbound->ToString(message);
-                    TRACE_L1("Message: %s send", message.c_str());
+                    Core::ProxyType<Core::JSONRPC::Message> message;
+                    if (Core::JSONType::HasMessagePackAvailable<INTERFACETYPE>::Has == true) {
+                        Core::JSONType::ToMessagePack<Core::ProxyType<Core::JSONRPC::Message>>(inbound, message, std::integral_constant<bool, Core::JSONType::HasMessagePackAvailable<INTERFACETYPE>::Has>());
+                    } else if (Core::JSONType::HasElementAvailable<INTERFACETYPE>::Has == true) {
+                        Core::JSONType::ToElement<Core::ProxyType<Core::JSONRPC::Message>>(inbound, message, std::integral_constant<bool, Core::JSONType::HasElementAvailable<INTERFACETYPE>::Has>());
+                    }
                 }
 #endif
             }
@@ -151,13 +154,13 @@ namespace JSONRPC {
             }
 
         private:
-            Channel& _parent;
+            Channel<INTERFACETYPE>& _parent;
         };
 
 
     public:
-        Channel(const Channel&) = delete;
-        Channel& operator=(const Channel&) = delete;
+        Channel(const Channel<INTERFACE>&) = delete;
+        Channel& operator=(const Channel<INTERFACE>&) = delete;
 
 
     protected:
@@ -184,7 +187,7 @@ namespace JSONRPC {
         }
         bool IsOperational() const
         {
-            return (const_cast<Channel&>(*this).Open(0));
+            return (const_cast<Channel<INTERFACE>&>(*this).Open(0));
         }
         uint32_t Sequence() const
         {
@@ -207,7 +210,7 @@ namespace JSONRPC {
             FactoryImpl::Instance().Revoke(client);
             _adminLock.Unlock();
         }
-        void Submit(const Core::ProxyType<Core::JSON::IElement>& message)
+        void Submit(const Core::ProxyType<INTERFACE>& message)
         {
             _channel.Submit(message);
         }
@@ -382,7 +385,7 @@ namespace JSONRPC {
         Client(const string& remoteCallsign, const TCHAR* localCallsign, const bool directed = false)
             : _adminLock()
             , _connectId(RemoteNodeId())
-            , _channel(Channel<INTERFACE>::Instance(_connectId, string("/jsonrpc/") + ((directed && !remoteCallsign.empty()) ? remoteCallsign : "Controller")))
+            , _channel(Channel<INTERFACE>::Instance(_connectId, string("/jsonrpc/") + ((directed && !remoteCallsign.empty()) ? remoteCallsign : "Controller"))) //TODO: look why this line making INTERFACE as WPEFramework::JSONRPC::Channel<WPEFramework::Core::JSON::IElement> instead WPEFramework::Core::JSON::IElement
             , _handler([&](const uint32_t, const string&, const string&) { }, { DetermineVersion(remoteCallsign) })
             , _callsign((!directed || remoteCallsign.empty()) ? remoteCallsign : "")
             , _localSpace(localCallsign)
@@ -525,18 +528,14 @@ namespace JSONRPC {
         DEPRECATED uint32_t Invoke(const uint32_t waitTime, const string& method, const PARAMETERS& parameters, Core::JSON::VariantContainer& inbound)
         // Note: use of Invoke without indicating both Parameters and Response type is deprecated -> replace this one by Invoke<PARAMETER type, Core::JSON::VariantContainer>(..
         {
-            string subject;
-            parameters.ToString(subject);
-            return InternalInvoke(waitTime, method, subject, inbound);
+            return InternalInvoke<PARAMETERS>(waitTime, method, parameters, inbound);
         }
 
         template <typename PARAMETERS, typename RESPONSE>
         typename std::enable_if<(!std::is_same<PARAMETERS, void>::value && !std::is_same<RESPONSE, void>::value), uint32_t>::type
         Invoke(const uint32_t waitTime, const string& method, const PARAMETERS& parameters, RESPONSE& inbound)
         {
-            string subject;
-            parameters.ToString(subject);
-            return InternalInvoke(waitTime, method, subject, inbound);
+            return InternalInvoke<PARAMETERS>(waitTime, method, parameters, inbound);
         }
 
         template <typename PARAMETERS, typename RESPONSE>
@@ -550,9 +549,7 @@ namespace JSONRPC {
         typename std::enable_if<(!std::is_same<PARAMETERS, void>::value && std::is_same<RESPONSE, void>::value), uint32_t>::type
         Invoke(const uint32_t waitTime, const string& method, const PARAMETERS& parameters)
         {
-            string subject;
-            parameters.ToString(subject);
-            return InternalInvoke(waitTime, method, subject);
+            return InternalInvoke<PARAMETERS>(waitTime, method, parameters);
         }
 
         template <typename PARAMETERS, typename RESPONSE>
@@ -563,18 +560,24 @@ namespace JSONRPC {
         }
 
     private:
-        template <typename RESPONSE>
-        uint32_t InternalInvoke(const uint32_t waitTime, const string& method, const string& parameters, RESPONSE& inbound)
+        template <typename PARAMETERS, typename RESPONSE>
+        uint32_t InternalInvoke(const uint32_t waitTime, const string& method, const PARAMETERS& parameters, RESPONSE& inbound)
         {
             Core::ProxyType<Core::JSONRPC::Message> response;
             uint32_t result = Send(waitTime, method, parameters, response);
+
             if (result == Core::ERROR_NONE) {
-                inbound.FromString(response->Result.Value());
+                if (Core::JSONType::HasMessagePackAvailable<INTERFACE>::Has == true) {
+                    Core::JSONType::FromMessagePack<RESPONSE>(inbound, *response, std::integral_constant<bool, Core::JSONType::HasMessagePackAvailable<INTERFACE>::Has>());
+                } else if (Core::JSONType::HasElementAvailable<INTERFACE>::Has == true) {
+                    Core::JSONType::FromElement<RESPONSE>(inbound, *response, std::integral_constant<bool, Core::JSONType::HasElementAvailable<INTERFACE>::Has>());
+                }
             }
             return (result);
         }
 
-        uint32_t InternalInvoke(const uint32_t waitTime, const string& method, const string& parameters)
+        template <typename PARAMETERS>
+        uint32_t InternalInvoke(const uint32_t waitTime, const string& method, const PARAMETERS& parameters)
         {
             Core::ProxyType<Core::JSONRPC::Message> response;
             return Send(waitTime, method, parameters, response);
@@ -600,14 +603,11 @@ namespace JSONRPC {
         {
             using ERRORCODE = typename Core::TypeTraits::func_traits<HANDLER>::template argument<1>::type;
 
-            string subject;
-            parameters.ToString(subject);
-
-            return (InternalInvoke<HANDLER>(
+            return (InternalInvoke<PARAMETERS, HANDLER>(
                 ::TemplateIntToType<std::is_same<ERRORCODE, Core::JSONRPC::Error*>::value>(),
                 waitTime,
                 method,
-                subject,
+                parameters,
                 callback));
         }
         template <typename PARAMETERS, typename HANDLER, typename REALOBJECT = typename Core::TypeTraits::func_traits<HANDLER>::classtype>
@@ -616,7 +616,7 @@ namespace JSONRPC {
         {
             using ERRORCODE = typename Core::TypeTraits::func_traits<HANDLER>::template argument<1>::type;
 
-            return (InternalInvoke<HANDLER, REALOBJECT>(
+            return (InternalInvoke<string, HANDLER, REALOBJECT>(
                 ::TemplateIntToType<std::is_same<ERRORCODE, Core::JSONRPC::Error*>::value>(),
                 waitTime,
                 method,
@@ -630,14 +630,11 @@ namespace JSONRPC {
         {
             using ERRORCODE = typename Core::TypeTraits::func_traits<HANDLER>::template argument<1>::type;
 
-            string subject;
-            parameters.ToString(subject);
-
-            return (InternalInvoke<HANDLER, REALOBJECT>(
+            return (InternalInvoke<PARAMETERS, HANDLER, REALOBJECT>(
                 ::TemplateIntToType<std::is_same<ERRORCODE, Core::JSONRPC::Error*>::value>(),
                 waitTime,
                 method,
-                subject,
+                parameters,
                 callback,
                 objectPtr));
         }
@@ -663,9 +660,7 @@ namespace JSONRPC {
         uint32_t Set(const uint32_t waitTime, const string& method, const PARAMETERS& sendObject)
         {
             Core::ProxyType<Core::JSONRPC::Message> response;
-            string subject;
-            sendObject.ToString(subject);
-            uint32_t result = Send(waitTime, method, subject, response);
+            uint32_t result = Send(waitTime, method, sendObject, response);
             if ((result == Core::ERROR_NONE) && (response->Error.IsSet() == true)) {
                 result = response->Error.Code.Value();
             }
@@ -706,15 +701,19 @@ namespace JSONRPC {
     private:
         template <typename INTERFACETYPE> friend class Channel;
 
-        template <typename HANDLER>
-        uint32_t InternalInvoke(const ::TemplateIntToType<0>&, const uint32_t waitTime, const string& method, const string& parameters, const HANDLER& callback)
+        template <typename PARAMETERS, typename HANDLER>
+        uint32_t InternalInvoke(const ::TemplateIntToType<0>&, const uint32_t waitTime, const string& method, const PARAMETERS& parameters, const HANDLER& callback)
         {
             using RESPONSE = typename Core::TypeTraits::func_traits<HANDLER>::template argument<0>::type;
 
             CallbackFunction implementation = [callback](const Core::JSONRPC::Message& inbound) -> void {
                 typename std::remove_const<typename std::remove_reference<RESPONSE>::type>::type response;
                 if (inbound.Error.IsSet() == false) {
-                    response.FromString(inbound.Result.Value());
+                    if (Core::JSONType::HasMessagePackAvailable<INTERFACE>::Has == true) {
+                        Core::JSONType::FromMessagePack<RESPONSE>(response, inbound, std::integral_constant<bool, Core::JSONType::HasMessagePackAvailable<INTERFACE>::Has>());
+                    } else if (Core::JSONType::HasElementAvailable<INTERFACE>::Has == true) {
+                        Core::JSONType::FromElement<RESPONSE>(response, inbound, std::integral_constant<bool, Core::JSONType::HasElementAvailable<INTERFACE>::Has>());
+                    }
                 }
                 callback(response);
             };
@@ -722,8 +721,8 @@ namespace JSONRPC {
             uint32_t result = Send(waitTime, method, parameters, implementation);
             return (result);
         }
-        template <typename HANDLER>
-        uint32_t InternalInvoke(const ::TemplateIntToType<1>&, const uint32_t waitTime, const string& method, const string& parameters, const HANDLER& callback)
+        template <typename PARAMETERS, typename HANDLER>
+        uint32_t InternalInvoke(const ::TemplateIntToType<1>&, const uint32_t waitTime, const string& method, const PARAMETERS& parameters, const HANDLER& callback)
         {
             using RESPONSE = typename Core::TypeTraits::func_traits<HANDLER>::template argument<0>::type;
 
@@ -731,7 +730,12 @@ namespace JSONRPC {
                 typename std::remove_const<typename std::remove_reference<RESPONSE>::type>::type response;
 
                 if (inbound.Error.IsSet() == false) {
-                    response.FromString(inbound.Result.Value());
+                    if (Core::JSONType::HasMessagePackAvailable<INTERFACE>::Has == true) {
+                        Core::JSONType::FromMessagePack<RESPONSE>(response, inbound, std::integral_constant<bool, Core::JSONType::HasMessagePackAvailable<INTERFACE>::Has>());
+                    } else if (Core::JSONType::HasElementAvailable<INTERFACE>::Has == true) {
+                        Core::JSONType::FromElement<RESPONSE>(response, inbound, std::integral_constant<bool, Core::JSONType::HasElementAvailable<INTERFACE>::Has>());
+                    }
+
                     callback(response, nullptr);
                 } else {
                     callback(response, &(response.Error));
@@ -741,8 +745,8 @@ namespace JSONRPC {
             uint32_t result = Send(waitTime, method, parameters, implementation);
             return (result);
         }
-        template <typename HANDLER, typename REALOBJECT>
-        uint32_t InternalInvoke(const ::TemplateIntToType<1>&, const uint32_t waitTime, const string& method, const string& parameters, const HANDLER& callback, REALOBJECT* objectPtr)
+        template <typename PARAMETERS, typename HANDLER, typename REALOBJECT>
+        uint32_t InternalInvoke(const ::TemplateIntToType<1>&, const uint32_t waitTime, const string& method, const PARAMETERS& parameters, const HANDLER& callback, REALOBJECT* objectPtr)
         {
             using RESPONSE = typename Core::TypeTraits::func_traits<HANDLER>::template argument<0>::type;
 
@@ -751,7 +755,11 @@ namespace JSONRPC {
                 typename std::remove_const<typename std::remove_reference<RESPONSE>::type>::type response;
 
                 if (inbound.Error.IsSet() == false) {
-                    response.FromString(inbound.Result.Value());
+                    if (Core::JSONType::HasMessagePackAvailable<INTERFACE>::Has == true) {
+                        Core::JSONType::FromMessagePack<RESPONSE>(response, inbound, std::integral_constant<bool, Core::JSONType::HasMessagePackAvailable<INTERFACE>::Has>());
+                    } else if (Core::JSONType::HasElementAvailable<INTERFACE>::Has == true) {
+                        Core::JSONType::FromElement<RESPONSE>(response, inbound, std::integral_constant<bool, Core::JSONType::HasElementAvailable<INTERFACE>::Has>());
+                    }
                 }
 
                 actualMethod(response);
@@ -760,8 +768,8 @@ namespace JSONRPC {
             uint32_t result = Send(waitTime, method, parameters, implementation);
             return (result);
         }
-        template <typename HANDLER, typename REALOBJECT>
-        uint32_t InternalInvoke(const ::TemplateIntToType<0>&, const uint32_t waitTime, const string& method, const string& parameters, const HANDLER& callback, REALOBJECT* objectPtr)
+        template <typename PARAMETERS, typename HANDLER, typename REALOBJECT>
+        uint32_t InternalInvoke(const ::TemplateIntToType<0>&, const uint32_t waitTime, const string& method, const PARAMETERS& parameters, const HANDLER& callback, REALOBJECT* objectPtr)
         {
             using RESPONSE = typename Core::TypeTraits::func_traits<HANDLER>::template argument<0>::type;
 
@@ -769,7 +777,12 @@ namespace JSONRPC {
             CallbackFunction implementation = [actualMethod](const Core::JSONRPC::Message& inbound) -> void {
                 typename std::remove_const<typename std::remove_reference<RESPONSE>::type>::type response;
                 if (inbound.Error.IsSet() == false) {
-                    response.FromString(inbound.Result.Value());
+                    if (Core::JSONType::HasMessagePackAvailable<INTERFACE>::Has == true) {
+                        Core::JSONType::FromMessagePack<RESPONSE>(response, inbound, std::integral_constant<bool, Core::JSONType::HasMessagePackAvailable<INTERFACE>::Has>());
+                    } else if (Core::JSONType::HasElementAvailable<INTERFACE>::Has == true) {
+                        Core::JSONType::FromElement<RESPONSE>(response, inbound, std::integral_constant<bool, Core::JSONType::HasElementAvailable<INTERFACE>::Has>());
+                    }
+
                     actualMethod(response, nullptr);
                 } else {
                     actualMethod(response, &(inbound.Error));
@@ -797,7 +810,8 @@ namespace JSONRPC {
 
             _adminLock.Unlock();
         }
-        uint32_t Send(const uint32_t waitTime, const string& method, const string& parameters, Core::ProxyType<Core::JSONRPC::Message>& response)
+        template <typename PARAMETERS>
+        uint32_t Send(const uint32_t waitTime, const string& method, const PARAMETERS& parameters, Core::ProxyType<Core::JSONRPC::Message>& response)
         {
             uint32_t result = Core::ERROR_UNAVAILABLE;
 
@@ -813,10 +827,11 @@ namespace JSONRPC {
                 } else {
                     message->Designator = method;
                 }
-                if (parameters.empty() == false) {
-                    message->Parameters = parameters;
+                if (Core::JSONType::HasMessagePackAvailable<INTERFACE>::Has == true) {
+                    Core::JSONType::ToMessagePack<PARAMETERS>(parameters, message, std::integral_constant<bool, Core::JSONType::HasMessagePackAvailable<INTERFACE>::Has>());
+                } else if (Core::JSONType::HasElementAvailable<INTERFACE>::Has == true) {
+                    Core::JSONType::ToElement<PARAMETERS>(parameters, message, std::integral_constant<bool, Core::JSONType::HasElementAvailable<INTERFACE>::Has>());
                 }
-
                 _adminLock.Lock();
 
                 std::pair<typename PendingMap::iterator, bool> newElement = _pendingQueue.emplace(std::piecewise_construct,
@@ -830,7 +845,7 @@ namespace JSONRPC {
 
                     _adminLock.Unlock();
 
-                    _channel->Submit(Core::ProxyType<Core::JSON::IElement>(message));
+                    _channel->Submit(Core::ProxyType<INTERFACE>(message));
 
                     message.Release();
 
@@ -854,7 +869,8 @@ namespace JSONRPC {
 
             return (result);
         }
-        uint32_t Send(const uint32_t waitTime, const string& method, const string& parameters, CallbackFunction& response)
+        template <typename PARAMETERS>
+        uint32_t Send(const uint32_t waitTime, const string& method, const PARAMETERS& parameters, CallbackFunction& response)
         {
             uint32_t result = Core::ERROR_UNAVAILABLE;
 
@@ -871,8 +887,10 @@ namespace JSONRPC {
                 } else {
                     message->Designator = method;
                 }
-                if (parameters.empty() == false) {
-                    message->Parameters = parameters;
+                if (Core::JSONType::HasMessagePackAvailable<INTERFACE>::Has == true) {
+                    Core::JSONType::ToMessagePack<PARAMETERS>(parameters, message, std::integral_constant<bool, Core::JSONType::HasMessagePackAvailable<INTERFACE>::Has>());
+                } else if (Core::JSONType::HasElementAvailable<INTERFACE>::Has == true) {
+                    Core::JSONType::ToElement<PARAMETERS>(parameters, message, std::integral_constant<bool, Core::JSONType::HasElementAvailable<INTERFACE>::Has>());
                 }
 
                 _adminLock.Lock();
@@ -884,7 +902,7 @@ namespace JSONRPC {
 
                 if (newElement.second == true) {
 
-                    _channel->Submit(Core::ProxyType<Core::JSON::IElement>(message));
+                    _channel->Submit(Core::ProxyType<INTERFACE>(message));
 
                     result = Core::ERROR_NONE;
 
