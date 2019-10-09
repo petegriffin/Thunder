@@ -114,7 +114,7 @@ namespace Core {
         }
         template <typename INTERFACE>
         static uint16_t SerializeElement(INTERFACE element, uint8_t* stream, const uint16_t length, uint16_t offset, std::true_type) {
-            return 0;//element->Serialize(reinterpret_cast<const char*>(stream), length, offset);
+            return element->Serialize(reinterpret_cast<char*>(stream), length, offset);
         }
         template <typename INTERFACE>
         static uint16_t SerializeElement(INTERFACE element, uint8_t* stream, const uint16_t length, uint16_t offset, std::false_type) {
@@ -122,7 +122,7 @@ namespace Core {
         }
         template <typename INTERFACE>
         static uint16_t DeserializeElement(INTERFACE& element, const uint8_t* stream, const uint16_t length, uint16_t offset, std::true_type) {
-            return 0;//element->Deserialize(reinterpret_cast<const char*>(stream), length, offset);
+            return element->Deserialize(reinterpret_cast<const char*>(stream), length, offset);
         }
         template <typename INTERFACE>
         static uint16_t DeserializeElement(INTERFACE& element, const uint8_t* stream, const uint16_t length, uint16_t offset, std::false_type) {
