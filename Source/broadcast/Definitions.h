@@ -230,7 +230,9 @@ namespace Broadcast {
             IDLE = 0x01,
             LOCKED = 0x02,
             PREPARED = 0x04,
-            STREAMING = 0x08
+            STREAMING = 0x08,
+            PLAYING = 0x10,
+            RECORDING = 0x20
         };
 
         enum DTVStandard {

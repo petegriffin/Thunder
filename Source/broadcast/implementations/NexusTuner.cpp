@@ -1506,6 +1506,9 @@ namespace Broadcast {
                 // if background - LOCKED otherwise PREPARED/STREAMING
                 if ((_state == LOCKED) || (_state == PREPARED) || (_state == STREAMING)) {
                     result = _recorder.Start( _program );
+                    if (result == Core::ERROR_NONE) {
+                        _state = RECORDING;
+                    }
                 } else {
                     TRACE_L1("Stream not prepared");
                 }
@@ -1519,9 +1522,12 @@ namespace Broadcast {
         virtual uint32_t StopRecord()
         {
             if (_mode == ITuner::Record) {
-                _recorder.Stop();
-
-                Detach(0);
+                if (_state == RECORDING) {
+                    _recorder.Stop();
+                    Detach(0);
+                }
+                _state = IDLE;
+                _callback->StateChange(this);
             } else {
                 TRACE_L1("Not a Record instance");
             }
@@ -1533,9 +1539,13 @@ namespace Broadcast {
             uint32_t result = Core::ERROR_GENERAL;
 
             if (_mode == ITuner::Playback) {
-                result = _player.Start(id);
-                _state = STREAMING;
-                _callback->StateChange(this);
+                if (_state == IDLE) {
+                    result = _player.Start(id);
+                    _state = PLAYING;
+                    _callback->StateChange(this);
+                } else {
+                    TRACE_L1("Already playing");
+                }
             } else {
                 TRACE_L1("Not a Playback instance");
             }
