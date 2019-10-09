@@ -53,7 +53,22 @@ namespace Core {
         static void FromMessagePack(PARAMETERS& parameters, const Core::JSONRPC::Message& message, std::false_type)
         {
         }
-
+        template <typename INTERFACE>
+        static uint16_t SerializeMessagePack(INTERFACE message, uint8_t* stream, const uint16_t length, uint16_t offset, std::true_type) {
+            return message->Serialize(stream, length, offset);
+        }
+        template <typename INTERFACE>
+        static uint16_t SerializeMessagePack(INTERFACE message, uint8_t* stream, const uint16_t length, uint16_t offset, std::false_type) {
+            return 0;
+        }
+        template <typename INTERFACE>
+        static uint16_t DeserializeMessagePack(INTERFACE& message, const uint8_t* stream, const uint16_t length, uint16_t offset, std::true_type) {
+            return message.Deserialize(stream, length, offset);
+        }
+        template <typename INTERFACE>
+        static uint16_t DeserializeMessagePack(INTERFACE& message, const uint8_t* stream, const uint16_t length, uint16_t offset, std::false_type) {
+            return 0;
+        }
         template <typename T>
         struct HasElementAvailable {
             template <typename U, void (U::*)(const std::string&)>
@@ -96,6 +111,22 @@ namespace Core {
         template <typename PARAMETERS>
         static void FromElement(PARAMETERS& parameters, const Core::JSONRPC::Message& message, std::false_type)
         {
+        }
+        template <typename INTERFACE>
+        static uint16_t SerializeElement(INTERFACE element, uint8_t* stream, const uint16_t length, uint16_t offset, std::true_type) {
+            return 0;//element->Serialize(reinterpret_cast<const char*>(stream), length, offset);
+        }
+        template <typename INTERFACE>
+        static uint16_t SerializeElement(INTERFACE element, uint8_t* stream, const uint16_t length, uint16_t offset, std::false_type) {
+            return 0;
+        }
+        template <typename INTERFACE>
+        static uint16_t DeserializeElement(INTERFACE& element, const uint8_t* stream, const uint16_t length, uint16_t offset, std::true_type) {
+            return 0;//element->Deserialize(reinterpret_cast<const char*>(stream), length, offset);
+        }
+        template <typename INTERFACE>
+        static uint16_t DeserializeElement(INTERFACE& element, const uint8_t* stream, const uint16_t length, uint16_t offset, std::false_type) {
+            return 0;
         }
     };
 
@@ -145,13 +176,12 @@ namespace Core {
                 _adminLock.Lock();
 
                 if (_sendQueue.Count() > 0) {
-                    if (std::is_same<INTERFACE, Core::JSON::IElement>::value) {
-                        loaded = _sendQueue[0]->Serialize(reinterpret_cast<const char*>(stream), length, _offset);
-                    } else if (std::is_same<INTERFACE, Core::JSON::IMessagePack>::value) {
-                        loaded = _sendQueue[0]->Serialize(stream, length, _offset);
+                    if (Core::JSONType::HasMessagePackAvailable<INTERFACE>::Has == true) {
+                        loaded = Core::JSONType::SerializeMessagePack(_sendQueue[0], stream, length, _offset, std::integral_constant<bool, Core::JSONType::HasMessagePackAvailable<INTERFACE>::Has>());
+                    } else if (Core::JSONType::HasElementAvailable<INTERFACE>::Has == true) {
+                        loaded = Core::JSONType::SerializeElement(_sendQueue[0], stream, length, _offset, std::integral_constant<bool, Core::JSONType::HasElementAvailable<INTERFACE>::Has>());
                     }
  
-                    loaded = _sendQueue[0]->Serialize(stream, length, _offset);
                     if ((_offset == 0) || (loaded != length)) {
                         Core::ProxyType<INTERFACE> current = _sendQueue[0];
                         _parent.Send(current);
@@ -202,7 +232,7 @@ namespace Core {
             {
                 return (_current.IsValid() == false);
             }
-            inline uint16_t Deserialize(const uint8_t* stream, const uint16_t length)
+            inline uint16_t Deserialize(const uint8_t stream[], const uint16_t length)
             {
                 uint16_t loaded = 0;
 
@@ -211,10 +241,10 @@ namespace Core {
                     _offset = 0;
                 }
                 if (_current.IsValid() == true) {
-                    if (std::is_same<INTERFACE, Core::JSON::IElement>::value) {
-                        loaded = _current->Deserialize(reinterpret_cast<const char*>(stream), length, _offset);
-                    } else if (std::is_same<INTERFACE, Core::JSON::IMessagePack>::value) {
-                        loaded = _current->Deserialize(stream, length, _offset);
+                    if (Core::JSONType::HasMessagePackAvailable<INTERFACE>::Has == true) {
+                        loaded = Core::JSONType::DeserializeMessagePack(_current, stream, length, _offset, std::integral_constant<bool, Core::JSONType::HasMessagePackAvailable<INTERFACE>::Has>());
+                    } else if (Core::JSONType::HasElementAvailable<INTERFACE>::Has == true) {
+                        loaded = Core::JSONType::DeserializeElement(_current, stream, length, _offset, std::integral_constant<bool, Core::JSONType::HasElementAvailable<INTERFACE>::Has>());
                     }
                     if ((_offset == 0) || (loaded != length)) {
                         _parent.Received(_current);

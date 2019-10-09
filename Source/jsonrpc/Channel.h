@@ -385,7 +385,7 @@ namespace JSONRPC {
         Client(const string& remoteCallsign, const TCHAR* localCallsign, const bool directed = false)
             : _adminLock()
             , _connectId(RemoteNodeId())
-            , _channel(Channel<INTERFACE>::Instance(_connectId, string("/jsonrpc/") + ((directed && !remoteCallsign.empty()) ? remoteCallsign : "Controller"))) //TODO: look why this line making INTERFACE as WPEFramework::JSONRPC::Channel<WPEFramework::Core::JSON::IElement> instead WPEFramework::Core::JSON::IElement
+            , _channel(Channel<INTERFACE>::Instance(_connectId, string("/jsonrpc/") + ((directed && !remoteCallsign.empty()) ? remoteCallsign : "Controller")))
             , _handler([&](const uint32_t, const string&, const string&) { }, { DetermineVersion(remoteCallsign) })
             , _callsign((!directed || remoteCallsign.empty()) ? remoteCallsign : "")
             , _localSpace(localCallsign)
@@ -1019,7 +1019,6 @@ namespace JSONRPC {
                 Core::ProxyType<Channel<INTERFACE>> result;
 
                 _adminLock.Lock();
-
                 string searchLine = remoteNode.HostName() + '@' + callsign;
 
                 typename CallsignMap::iterator index(_callsignMap.find(searchLine));
@@ -1104,7 +1103,7 @@ public:
     template <typename INTERFACE>
     /* static */ Core::ProxyType<Channel<INTERFACE>> Channel<INTERFACE>::Instance(const Core::NodeId& remoteNode, const string& callsign)
     {
-        return static_cast<Core::ProxyType<Channel<INTERFACE>>>(ChannelProxy<Channel<INTERFACE>>::Instance(remoteNode, callsign));
+        return ChannelProxy<INTERFACE>::Instance(remoteNode, callsign);
     }
 
     template <typename INTERFACE>
