@@ -93,9 +93,9 @@ namespace Exchange {
         virtual IControl* Control() = 0;
         virtual void Callback(IStream::ICallback* callback) = 0;
         virtual state State() const = 0;
-        virtual uint32_t Load(const string& configuration) = 0;
+        virtual uint32_t Load(const string& location) = 0;
 
-        virtual uint32_t StartRecord() = 0;
+        virtual uint32_t StartRecord(const string& location) = 0;
         virtual uint32_t StopRecord() = 0;
         virtual uint32_t StartPlay(const string& id) = 0;
         virtual uint32_t StopPlay() = 0;

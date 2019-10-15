@@ -932,6 +932,18 @@ namespace Broadcast {
             void EndOfStreamCallback(int32_t param)
             {
                 TRACE_L1("%s", __FUNCTION__);
+                // Notify App
+            }
+
+            static void BeginningOfStreamCallback(void* context, int32_t param)
+            {
+                reinterpret_cast<Player*>(context)->BeginningOfStreamCallback(param);
+            }
+
+            void BeginningOfStreamCallback(int32_t param)
+            {
+                TRACE_L1("%s", __FUNCTION__);
+                // Notify App
             }
 
             void Open()
@@ -954,6 +966,10 @@ namespace Broadcast {
                 playbackSettings.endOfStreamCallback.callback = EndOfStreamCallback;
                 playbackSettings.endOfStreamCallback.context = this;
                 playbackSettings.endOfStreamCallback.param = 0;
+                playbackSettings.beginningOfStreamCallback.callback = BeginningOfStreamCallback;
+                playbackSettings.beginningOfStreamCallback.context = this;
+                playbackSettings.beginningOfStreamCallback.param = 0;
+
                 rc = NEXUS_Playback_SetSettings(_playback, &playbackSettings);
                 if (rc) {
                     TRACE_L1("Failed to set playback settings rc=%d", rc);
@@ -1635,7 +1651,7 @@ namespace Broadcast {
 
                         // Go start priming
                         if (_mode == ITuner::Record) {
-                            // XXX: We could start the Recording
+                            StartRecord();
                         } else {
                             Open();
                         }
