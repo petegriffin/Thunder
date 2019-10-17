@@ -48,6 +48,7 @@ namespace RPC {
             , _threads(copy._threads)
             , _priority(copy._priority)
             , _type(copy._type)
+            , _hostAddress(copy._hostAddress)
             , _configuration(copy._configuration)
         {
         }
@@ -72,6 +73,31 @@ namespace RPC {
             , _threads(threads)
             , _priority(priority)
             , _type(type)
+            , _hostAddress("")
+            , _configuration(configuration)
+        {
+        }
+        Object(const string callsign,
+            const string& locator,
+            const string& className,
+            const uint32_t interface,
+            const uint32_t version,
+            const string& user,
+            const string& group,
+            const uint8_t threads,
+            const HostType type,
+            const string& hostAddress,
+            const string& configuration)
+            : _callsign(callsign)
+            , _locator(locator)
+            , _className(className)
+            , _interface(interface)
+            , _version(version)
+            , _user(user)
+            , _group(group)
+            , _threads(threads)
+            , _type(type)
+            , _hostAddress(hostAddress)
             , _configuration(configuration)
         {
         }
@@ -91,6 +117,7 @@ namespace RPC {
             _threads = RHS._threads;
             _priority = RHS._priority;
             _type = RHS._type;
+            _hostAddress = RHS._hostAddress;
             _configuration = RHS._configuration;
 
             return (*this);
@@ -137,6 +164,10 @@ namespace RPC {
         {
             return (_type);
         }
+        inline string HostAddress() const
+        {
+            return (_hostAddress);
+        }
         inline const string& Configuration() const
         {
             return (_configuration);
@@ -153,6 +184,7 @@ namespace RPC {
         uint8_t _threads;
         int8_t _priority;
         HostType _type;
+        string _hostAddress;
         string _configuration;
     };
 
@@ -378,12 +410,11 @@ namespace RPC {
                 TRACE_L1("Destructor for RemoteProcess process for %d", Id());
             }
 
-        private:
-            virtual void LaunchProcess(const Object& instance, const Core::Process::Options& options) = 0;
+        public:
+            virtual void Launch(const Object& instance, const Config& config) = 0;
 
         public:
-            inline void Launch(const Object& instance, const Config& config)
-            {
+            Core::Process::Options GetOptions(const Object& instance, const Config& config) {
                 Core::Process::Options options(config.HostApplication());
                 uint32_t loggingSettings = (Logging::LoggingType<Logging::Startup>::IsEnabled() ? 0x01 : 0) | (Logging::LoggingType<Logging::Shutdown>::IsEnabled() ? 0x02 : 0) | (Logging::LoggingType<Logging::Notification>::IsEnabled() ? 0x04 : 0);
 
@@ -430,7 +461,7 @@ namespace RPC {
                     options[_T("-t")] = Core::NumberType<uint8_t>(instance.Threads()).Text();
                 }
 
-                LaunchProcess(instance, options);
+                return options;
             }
         };
         class EXTERNAL MonitorableRemoteProcess : public RemoteProcess, public IRemoteConnection::IProcess {
@@ -471,8 +502,11 @@ namespace RPC {
             ~LocalRemoteProcess() = default;
 
         private:
-            void LaunchProcess(const Object& instance, const Core::Process::Options& options) override
+
+            void Launch(const Object& instance, const Config& config) override
             {
+                auto options = GetOptions(instance, config);
+
                 // Start the external process launch..
                 Core::Process fork(false);
 
@@ -568,8 +602,11 @@ namespace RPC {
             }
 
         private:
-            void LaunchProcess(const Object& instance, const Core::Process::Options& options) override
+
+            void Launch(const Object& instance, const Config& config) override
             {
+                auto options = GetOptions();
+
                 if (_container != nullptr) {
 
                     // Note: replace below code with something more efficient when Iterators redesigned
@@ -607,7 +644,7 @@ namespace RPC {
             RemoteHost& operator=(const RemoteHost&) = delete;
 
         private:
-            RemoteHost(const Core::NodeId& remoteNode);
+            RemoteHost(const string& remoteNode);
 
         public:
             virtual ~RemoteHost()
@@ -615,12 +652,17 @@ namespace RPC {
                 TRACE_L1("Destructor for RemoteHost process for %d", Id());
             }
 
-        private:
-            void LaunchProcess(const Object& instance, const Core::Process::Options& options) override
+            uint32_t RemoteId() const override
             {
+                return _pid;
             }
 
         private:
+            void Launch(const Object& instance, const Config& config) override;
+
+        private:
+            uint32_t _pid;
+            const string _remoteNode;
             Core::ProxyType<Core::IPCChannelType<Core::SocketPort, ChannelLink>> _hostChannel;
         };
 
@@ -633,7 +675,7 @@ namespace RPC {
                 result = Core::Service<LocalRemoteProcess>::Create<RemoteProcess>(instance.Callsign());
                 break;
             case Object::HostType::DISTRIBUTED:
-                result = Core::Service<RemoteHost>::Create<RemoteProcess>(Core::NodeId(_T("127.0.0.1:9120")));
+                result = Core::Service<RemoteHost>::Create<RemoteProcess>(instance.HostAddress());
                 break;
             case Object::HostType::CONTAINER:
 #ifdef PROCESSCONTAINERS_ENABLED

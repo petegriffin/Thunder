@@ -2,6 +2,8 @@
 
 #include <limits>
 #include <memory>
+#include "interfaces/IRemoteInvocation.h"
+#include "interfaces/IMinimalPlugin.h"
 
 namespace WPEFramework {
 namespace RPC {
@@ -313,14 +315,58 @@ namespace RPC {
 
 #endif
 
-    Communicator::RemoteHost::RemoteHost(const Core::NodeId& remoteNode)
+    Communicator::RemoteHost::RemoteHost(const string& remoteNode)
         : RemoteProcess()
+        , _pid(0)
+        , _remoteNode(remoteNode)
     {
     }
 
 #ifdef __WINDOWS__
 #pragma warning(disable : 4355)
 #endif
+    void Communicator::RemoteHost::Launch(const Object& instance, const Config& config) 
+    {
+        // Try to connect 
+        auto _engine = Core::ProxyType<RPC::InvokeServerType<4, 1>>::Create(Core::Thread::DefaultStackSize());
+
+        if (_engine.IsValid()) {
+            auto _client = Core::ProxyType<RPC::CommunicatorClient>::Create(Core::NodeId("127.0.0.1:5797"), Core::ProxyType<Core::IIPCServer>(_engine));
+
+            if (_client.IsValid()) {
+                Exchange::IRemoteInvocation* _remote = _client->Open<Exchange::IRemoteInvocation>(_T("RemoteInvocation"));
+
+                if (_remote != nullptr) {
+                    auto _client = Core::ProxyType<RPC::CommunicatorClient>::Create(Core::NodeId("127.0.0.1:5797"), Core::ProxyType<Core::IIPCServer>(_engine));
+
+                    uint32_t loggingSettings = (Logging::LoggingType<Logging::Startup>::IsEnabled() ? 0x01 : 0) | (Logging::LoggingType<Logging::Shutdown>::IsEnabled() ? 0x02 : 0) | (Logging::LoggingType<Logging::Notification>::IsEnabled() ? 0x04 : 0);
+
+                    Exchange::IRemoteInvocation::ProgramParams params;
+                    params.callsign = instance.Callsign();
+                    params.locator = instance.Locator();
+                    params.className = instance.ClassName();
+                    params.interface = instance.Interface();
+                    params.logging = loggingSettings;
+                    params.id = Id();
+                    params.version = instance.Version();
+                    params.threads = instance.Threads() > 1 ? instance.Threads() : 1;
+
+                    _remote->Start(instance.HostAddress(), params);
+
+                    // Plugin started remotely, connection to RemoteInvocation no longer needed...
+                    _client->Close(0);
+                    _client.Release();
+                    _engine.Release();
+                } else {
+                    TRACE(Trace::Error, ("Could not open remote communicaiton with service %s on %s", instance.Callsign().c_str(), "127.0.0.1:5797"));
+                }
+            } else {
+                TRACE(Trace::Error, ("Failed to create CommunicatorClient while trying to remote launch %s on %s", instance.Callsign().c_str(), "127.0.0.1:5797"));
+            }
+        } else {
+            TRACE(Trace::Error, ("Failed to create InvokeServer while trying to remote launch %s on %s", instance.Callsign().c_str(), "127.0.0.1:5797"));
+        }
+    }
 
     Communicator::Communicator(const Core::NodeId& node, const string& proxyStubPath)
         : _connectionMap(*this)
