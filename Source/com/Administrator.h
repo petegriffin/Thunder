@@ -15,7 +15,7 @@ namespace ProxyStub {
 namespace RPC {
 
 #ifdef __DEBUG__
-    enum { CommunicationTimeOut = Core::infinite }; // Time in ms. Forever
+    enum { CommunicationTimeOut = 2000 }; // Time in ms. Forever
 #else
     enum { CommunicationTimeOut = 10000 }; // Time in ms. 10 Seconden
 #endif

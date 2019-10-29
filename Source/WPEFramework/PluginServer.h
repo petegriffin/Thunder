@@ -1443,6 +1443,7 @@ namespace PluginHost {
                 , _subSystems(this)
                 , _authenticationHandler(nullptr)
             {
+
             }
             #ifdef __WINDOWS__
             #pragma warning(default : 4355)

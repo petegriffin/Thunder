@@ -198,6 +198,14 @@ namespace ProxyStubs {
         },
         [](Core::ProxyType<Core::IPCChannel>& /* channel */, Core::ProxyType<RPC::InvokeMessage>& message) {
             //
+            // virtual string DataPath() const = 0;
+            //
+            RPC::Data::Frame::Writer response(message->Response().Writer());
+
+            response.Text(message->Parameters().Implementation<IShell>()->SystemPath());
+        },
+        [](Core::ProxyType<Core::IPCChannel>& /* channel */, Core::ProxyType<RPC::InvokeMessage>& message) {
+            //
             // Careful, this interface method is in a different order from the actual interface, which means all methods
             // following this one are also out of order.
             //
@@ -730,6 +738,7 @@ namespace ProxyStubs {
         // virtual string PersistentPath() const = 0;
         // virtual string VolatilePath() const = 0;
         // virtual string DataPath() const = 0;
+        // virtual string SystemPath() const = 0;
         // virtual string HashKey() const = 0;
         // virtual bool AutoStart() const = 0;
         // virtual bool Resumed() const = 0;
@@ -880,7 +889,8 @@ namespace ProxyStubs {
 
             return (result);
         }
-        virtual string HashKey() const override
+
+        virtual string SystemPath() const override
         {
             string result;
             IPCMessage newMessage(BaseClass::Message(13));
@@ -891,10 +901,22 @@ namespace ProxyStubs {
 
             return (result);
         }
+
+        virtual string HashKey() const override
+        {
+            string result;
+            IPCMessage newMessage(BaseClass::Message(14));
+
+            if (Invoke(newMessage) == Core::ERROR_NONE) {
+                result = newMessage->Response().Reader().Text();
+            }
+
+            return (result);
+        }
         virtual bool AutoStart() const override
         {
             bool result = false;
-            IPCMessage newMessage(BaseClass::Message(14));
+            IPCMessage newMessage(BaseClass::Message(15));
 
             if (Invoke(newMessage) == Core::ERROR_NONE) {
                 result = newMessage->Response().Reader().Boolean();
@@ -904,7 +926,7 @@ namespace ProxyStubs {
         }
         virtual void Notify(const string& message) override
         {
-            IPCMessage newMessage(BaseClass::Message(15));
+            IPCMessage newMessage(BaseClass::Message(16));
             RPC::Data::Frame::Writer writer(newMessage->Parameters().Writer());
 
             writer.Text(message);
@@ -914,7 +936,7 @@ namespace ProxyStubs {
         virtual void* QueryInterfaceByCallsign(const uint32_t id, const string& name) override
         {
             void* result = nullptr;
-            IPCMessage newMessage(BaseClass::Message(16));
+            IPCMessage newMessage(BaseClass::Message(17));
             RPC::Data::Frame::Writer writer(newMessage->Parameters().Writer());
 
             writer.Number(id);
@@ -928,7 +950,7 @@ namespace ProxyStubs {
         }
         virtual void Register(IPlugin::INotification* sink) override
         {
-            IPCMessage newMessage(BaseClass::Message(17));
+            IPCMessage newMessage(BaseClass::Message(18));
             RPC::Data::Frame::Writer writer(newMessage->Parameters().Writer());
             writer.Number<IPlugin::INotification*>(sink);
 
@@ -939,7 +961,7 @@ namespace ProxyStubs {
         }
         virtual void Unregister(IPlugin::INotification* sink) override
         {
-            IPCMessage newMessage(BaseClass::Message(18));
+            IPCMessage newMessage(BaseClass::Message(19));
             RPC::Data::Frame::Writer writer(newMessage->Parameters().Writer());
             writer.Number<IPlugin::INotification*>(sink);
 
@@ -951,7 +973,7 @@ namespace ProxyStubs {
         virtual uint32_t Activate(const IShell::reason theReason) override
         {
             uint32_t result = ~0;
-            IPCMessage newMessage(BaseClass::Message(19));
+            IPCMessage newMessage(BaseClass::Message(20));
             RPC::Data::Frame::Writer writer(newMessage->Parameters().Writer());
 
             writer.Number<IShell::reason>(theReason);
@@ -964,7 +986,7 @@ namespace ProxyStubs {
         virtual uint32_t Deactivate(const IShell::reason theReason) override
         {
             uint32_t result = ~0;
-            IPCMessage newMessage(BaseClass::Message(20));
+            IPCMessage newMessage(BaseClass::Message(21));
             RPC::Data::Frame::Writer writer(newMessage->Parameters().Writer());
 
             writer.Number<IShell::reason>(theReason);
@@ -978,7 +1000,7 @@ namespace ProxyStubs {
         virtual IShell::state State() const override
         {
             IShell::state result = IShell::state::DESTROYED;
-            IPCMessage newMessage(BaseClass::Message(21));
+            IPCMessage newMessage(BaseClass::Message(22));
             if (Invoke(newMessage) == Core::ERROR_NONE) {
                 result = newMessage->Response().Reader().Number<IShell::state>();
             }
@@ -989,7 +1011,7 @@ namespace ProxyStubs {
         {
             IShell::reason result = IShell::reason::FAILURE;
 
-            IPCMessage newMessage(BaseClass::Message(22));
+            IPCMessage newMessage(BaseClass::Message(23));
             if (Invoke(newMessage) == Core::ERROR_NONE) {
                 result = newMessage->Response().Reader().Number<IShell::reason>();
             }
@@ -999,7 +1021,7 @@ namespace ProxyStubs {
         virtual string Model() const override
         {
             string result;
-            IPCMessage newMessage(BaseClass::Message(23));
+            IPCMessage newMessage(BaseClass::Message(24));
 
             if (Invoke(newMessage) == Core::ERROR_NONE) {
                 result = newMessage->Response().Reader().Text();
@@ -1010,7 +1032,7 @@ namespace ProxyStubs {
         virtual ISubSystem* SubSystems() override
         {
             ISubSystem* result = nullptr;
-            IPCMessage newMessage(BaseClass::Message(24));
+            IPCMessage newMessage(BaseClass::Message(25));
 
             if (Invoke(newMessage) == Core::ERROR_NONE) {
                 result = reinterpret_cast<ISubSystem*>(Interface(newMessage->Response().Reader().Number<void*>(), ISubSystem::ID));
@@ -1020,7 +1042,7 @@ namespace ProxyStubs {
         virtual string ProxyStubPath() const override
         {
             string result;
-            IPCMessage newMessage(BaseClass::Message(25));
+            IPCMessage newMessage(BaseClass::Message(26));
 
             if (Invoke(newMessage) == Core::ERROR_NONE) {
                 result = newMessage->Response().Reader().Text();
@@ -1031,7 +1053,7 @@ namespace ProxyStubs {
         virtual bool IsSupported(const uint8_t version) const override
         {
             bool result = false;
-            IPCMessage newMessage(BaseClass::Message(26));
+            IPCMessage newMessage(BaseClass::Message(27));
             RPC::Data::Frame::Writer writer(newMessage->Parameters().Writer());
 
             writer.Number<uint8_t>(version);
@@ -1044,7 +1066,7 @@ namespace ProxyStubs {
         virtual string Version() const override
         {
             string result;
-            IPCMessage newMessage(BaseClass::Message(27));
+            IPCMessage newMessage(BaseClass::Message(28));
 
             if (Invoke(newMessage) == Core::ERROR_NONE) {
                 result = newMessage->Response().Reader().Text();
@@ -1055,7 +1077,7 @@ namespace ProxyStubs {
         virtual bool Resumed() const override
         {
             bool result = false;
-            IPCMessage newMessage(BaseClass::Message(28));
+            IPCMessage newMessage(BaseClass::Message(29));
 
             if (Invoke(newMessage) == Core::ERROR_NONE) {
                 result = newMessage->Response().Reader().Boolean();
@@ -1065,7 +1087,7 @@ namespace ProxyStubs {
         }
         virtual string ConfigSubstitution(const string& input) const override
         {
-            IPCMessage newMessage(BaseClass::Message(29));
+            IPCMessage newMessage(BaseClass::Message(30));
             RPC::Data::Frame::Writer writer(newMessage->Parameters().Writer());
 
             writer.Text(input);

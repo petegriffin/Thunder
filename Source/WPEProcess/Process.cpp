@@ -83,7 +83,7 @@ namespace WPEFramework {
 namespace Process {
 
     class WorkerPoolImplementation : public Core::IIPCServer, public Core::WorkerPool {
-    public:
+    private:
         WorkerPoolImplementation() = delete;
         WorkerPoolImplementation(const WorkerPoolImplementation&) = delete;
         WorkerPoolImplementation& operator=(const WorkerPoolImplementation&) = delete;
@@ -462,6 +462,7 @@ int main(int argc, char** argv)
                 // We have something to report back, do so...
                 if ((result = _server->Open((RPC::CommunicationTimeOut != Core::infinite ? 2 * RPC::CommunicationTimeOut : RPC::CommunicationTimeOut), options.InterfaceId, base, options.Exchange)) == Core::ERROR_NONE) {
                     TRACE_L1("Process up and running: %d.", Core::ProcessInfo().Id());
+
                     invokeServer->Run();
                     _server->Close(Core::infinite);
                 } else {

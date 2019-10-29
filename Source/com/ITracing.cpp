@@ -19,7 +19,25 @@ namespace ProxyStub {
             // virtual uint32_t RemtoteId() const = 0;
             RPC::Data::Frame::Writer response(message->Response().Writer());
 
-            response.Number<uint32_t>(message->Parameters().Implementation<RPC::IRemoteConnection>()->RemoteId());
+            response.Text(message->Parameters().Implementation<RPC::IRemoteConnection>()->RemoteId());
+        },
+        [](Core::ProxyType<Core::IPCChannel>& channel VARIABLE_IS_NOT_USED, Core::ProxyType<RPC::InvokeMessage>& message) {
+            // virtual string LocalId() = 0
+            RPC::Data::Frame::Writer response(message->Response().Writer());
+
+            response.Text(message->Parameters().Implementation<RPC::IRemoteConnection>()->LocalId());
+        },
+        [](Core::ProxyType<Core::IPCChannel>& channel VARIABLE_IS_NOT_USED, Core::ProxyType<RPC::InvokeMessage>& message) {
+            // virtual Type ConnectionType() = 0
+            RPC::Data::Frame::Writer response(message->Response().Writer());
+
+            response.Number<RPC::IRemoteConnection::Type>(message->Parameters().Implementation<RPC::IRemoteConnection>()->ConnectionType());
+        },
+        [](Core::ProxyType<Core::IPCChannel>& channel VARIABLE_IS_NOT_USED, Core::ProxyType<RPC::InvokeMessage>& message) {
+            // virtual uint32_t ProcessId() = 0
+            RPC::Data::Frame::Writer response(message->Response().Writer());
+
+            response.Number<uint32_t>(message->Parameters().Implementation<RPC::IRemoteConnection>()->ProcessId());
         },
         [](Core::ProxyType<Core::IPCChannel>& channel VARIABLE_IS_NOT_USED, Core::ProxyType<RPC::InvokeMessage>& message) {
             // virtual void* Instantiate(const uint32_t waitTime, const string& className, const uint32_t interfaceId, const uint32_t version) = 0;
@@ -179,22 +197,62 @@ namespace ProxyStub {
 
             return (id);
         }
-        virtual uint32_t RemoteId() const
+        virtual string RemoteId() const
         {
-            uint32_t id = 0;
+            string id = 0;
 
             IPCMessage newMessage(BaseClass::Message(1));
 
             if (Invoke(newMessage) == Core::ERROR_NONE) {
-                id = newMessage->Response().Reader().Number<uint32_t>();
+                id = newMessage->Response().Reader().Text();
             }
 
             return (id);
         }
+        virtual string LocalId() const
+        {
+            string source = 0;
+
+            IPCMessage newMessage(BaseClass::Message(3));
+
+            if (Invoke(newMessage) == Core::ERROR_NONE) {
+                source = newMessage->Response().Reader().Text();
+            }
+
+            return (source);
+        }
+        virtual IRemoteConnection::Type ConnectionType() const
+        {
+            IRemoteConnection::Type type;
+
+            IPCMessage newMessage(BaseClass::Message(4));
+
+            if (Invoke(newMessage) == Core::ERROR_NONE) {
+                type = newMessage->Response().Reader().Number<IRemoteConnection::Type>();
+            }
+
+            return (type);
+        }
+        virtual uint32_t ProcessId() const
+        {
+            uint32_t pid;
+
+            IPCMessage newMessage(BaseClass::Message(5));
+
+            if (Invoke(newMessage) == Core::ERROR_NONE) {
+                pid = newMessage->Response().Reader().Number<uint32_t>();
+            }
+
+            return (pid);
+        }
         virtual void* Aquire(const uint32_t waitTime, const string& className, const uint32_t interfaceId, const uint32_t version)
         {
             void* result = nullptr;
+<<<<<<< HEAD
             IPCMessage newMessage(BaseClass::Message(2));
+=======
+            IPCMessage newMessage(BaseClass::Message(6));
+>>>>>>> cc92a50... [RemoteInvocation] Demo working on rasberrypi
             RPC::Data::Frame::Writer writer(newMessage->Parameters().Writer());
 
             writer.Number(waitTime);
@@ -209,7 +267,11 @@ namespace ProxyStub {
         }
         virtual void Terminate()
         {
+<<<<<<< HEAD
             IPCMessage newMessage(BaseClass::Message(3));
+=======
+            IPCMessage newMessage(BaseClass::Message(7));
+>>>>>>> cc92a50... [RemoteInvocation] Demo working on rasberrypi
 
             Invoke(newMessage);
         }
