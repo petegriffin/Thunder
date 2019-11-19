@@ -429,7 +429,7 @@ namespace RPC {
             uint32_t id = _connectionId;
 
             RemoteInvocationCall(_remoteAddress, [id] (Exchange::IRemoteInvocation* remote) {
-                remote->Terminate(id);
+                remote->Unlink(id);
             });
         }
     private:
