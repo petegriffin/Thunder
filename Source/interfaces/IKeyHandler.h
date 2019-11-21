@@ -83,6 +83,7 @@ namespace Exchange {
         virtual uint32_t Error() const = 0;
         virtual string MetaData() const = 0;
         virtual void Configure(const string& settings) = 0;
+        virtual void Clear() = 0;
     };
 
     struct IWheelProducer : virtual public Core::IUnknown {
@@ -95,6 +96,7 @@ namespace Exchange {
         virtual uint32_t Error() const = 0;
         virtual string MetaData() const = 0;
         virtual void Configure(const string& settings) = 0;
+        virtual void Clear() = 0;
     };
 
     struct IPointerProducer : virtual public Core::IUnknown {
@@ -107,6 +109,7 @@ namespace Exchange {
         virtual uint32_t Error() const = 0;
         virtual string MetaData() const = 0;
         virtual void Configure(const string& settings) = 0;
+        virtual void Clear() = 0;
     };
 
     struct ITouchProducer : virtual public Core::IUnknown {
@@ -119,6 +122,7 @@ namespace Exchange {
         virtual uint32_t Error() const = 0;
         virtual string MetaData() const = 0;
         virtual void Configure(const string& settings) = 0;
+        virtual void Clear() = 0;
     };
 
 }
