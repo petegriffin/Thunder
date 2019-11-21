@@ -7,6 +7,7 @@ add_library(${TARGET} SHARED
         IStringIterator.cpp
         IValueIterator.cpp
         IUnknown.cpp
+        Messages.cpp
         Module.cpp
         )
 

@@ -249,11 +249,11 @@ namespace RPC {
             uint32_t feedback = _channel->Invoke(message, waitTime);
 
             if (feedback == Core::ERROR_NONE) {
-                void* implementation = message->Response().Implementation();
+                RPC::instanceId_t instanceId = message->Response().InstanceId();
 
-                if (implementation != nullptr) {
+                if (instanceId != RPC::EmptyInstance) {
                     // From what is returned, we need to create a proxy
-                    ProxyStub::UnknownProxy* instance = RPC::Administrator::Instance().ProxyInstance(Core::ProxyType<Core::IPCChannel>(_channel), implementation, interfaceId, true, interfaceId, false);
+                    ProxyStub::UnknownProxy* instance = RPC::Administrator::Instance().ProxyInstance(Core::ProxyType<Core::IPCChannel>(_channel), instanceId, interfaceId, true, interfaceId, false);
                     result = (instance != nullptr ? instance->QueryInterface(interfaceId) : nullptr);
                 }
             }
@@ -563,7 +563,11 @@ namespace RPC {
         ASSERT(BaseClass::IsOpen() == false);
         _announceEvent.ResetEvent();
 
-        _announceMessage->Parameters().Set(Core::ProcessInfo().Id(), interfaceId, implementation, exchangeId);
+        // TODO: Check if we can register object before channel is valid?
+        Core::ProxyType<Core::IPCChannel> refChannel(*this);
+        RPC::instanceId_t instanceId = RPC::Administrator::Instance().RegisterInterface(refChannel, implementation, interfaceId);
+
+        _announceMessage->Parameters().Set(Core::ProcessInfo().Id(), interfaceId, instanceId, exchangeId);
 
         uint32_t result = BaseClass::Open(waitTime);
 
@@ -589,7 +593,7 @@ namespace RPC {
 
             if (result != Core::ERROR_NONE) {
                 TRACE_L1("Error during invoke of AnnounceMessage: %d", result);
-            } else {
+            } /*else {
                 RPC::Data::Init& setupFrame(_announceMessage->Parameters());
 
                 if (setupFrame.IsRequested() == true) {
@@ -598,9 +602,10 @@ namespace RPC {
                     ASSERT(refChannel.IsValid());
 
                     // Register the interface we are passing to the otherside:
-                    RPC::Administrator::Instance().RegisterInterface(refChannel, setupFrame.Implementation(), setupFrame.InterfaceId());
+                    //void* object = RPC::Administrator::GetImplementation(setupFrame.InstanceId());
+                    //RPC::Administrator::Instance().RegisterInterface(refChannel, object, setupFrame.InterfaceId());
                 }
-            }
+            }*/
         } else {
             TRACE_L1("Connection to the server is down");
         }
