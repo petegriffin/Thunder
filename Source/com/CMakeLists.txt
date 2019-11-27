@@ -1,5 +1,9 @@
 set(TARGET ${NAMESPACE}COM)
 
+# Proxy stubs for RemoteLinker
+ProxyStubGenerator(NAMESPACE "RPC" INPUT ${CMAKE_CURRENT_SOURCE_DIR}/IRemoteLinker.h)
+file(GLOB PROXY_STUB_SOURCES ProxyStubs*.cpp)
+
 add_library(${TARGET} SHARED
         Administrator.cpp
         Communicator.cpp
@@ -8,6 +12,7 @@ add_library(${TARGET} SHARED
         IValueIterator.cpp
         IUnknown.cpp
         Messages.cpp
+        RemoteLinker.cpp
         Module.cpp
         )
 
@@ -21,7 +26,8 @@ set(PUBLIC_HEADERS
         ITracing.h
         IUnknown.h
         Messages.h
-        Module.h
+        IRemoteLinker.h
+        RemoteLinker.h
         Module.h
         )
 
@@ -29,6 +35,7 @@ target_link_libraries(${TARGET}
         PUBLIC
           ${NAMESPACE}Core::${NAMESPACE}Core
           ${NAMESPACE}Tracing::${NAMESPACE}Tracing
+          ${PROXY_STUB_SOURCES}
         PRIVATE
           CompileSettingsDebug::CompileSettingsDebug
         )
