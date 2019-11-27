@@ -12,7 +12,7 @@ namespace Exchange {
         virtual ~IRemoteHostExample() {}
 
         virtual uint32_t Initialize(PluginHost::IShell* service) = 0;
-        virtual uint32_t Greet(const string& name, string& response /* @out */) = 0;
+        virtual uint32_t Greet(const string& message, string& response /* @out */) = 0;
 
     };
 }

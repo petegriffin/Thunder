@@ -397,21 +397,9 @@ namespace RPC {
         auto remoteCall = [this, &instance, &config] (Exchange::IRemoteInvocation* remote) {
             uint32_t loggingSettings = (Logging::LoggingType<Logging::Startup>::IsEnabled() ? 0x01 : 0) | (Logging::LoggingType<Logging::Shutdown>::IsEnabled() ? 0x02 : 0) | (Logging::LoggingType<Logging::Notification>::IsEnabled() ? 0x04 : 0);
 
-            Exchange::IRemoteInvocation::ProgramParams params;
-            params.callsign = instance.Callsign();
-            params.locator = instance.Locator();
-            params.className = instance.ClassName();
-            params.interface = instance.Interface();
-            params.logging = loggingSettings;
-            params.id = Id();
-            params.version = instance.Version();
-            params.threads = instance.Threads() > 1 ? instance.Threads() : 1;
-
             uint16_t port = Core::NodeId(config.Connector().c_str()).PortNumber();
 
             remote->LinkByCallsign(port, instance.Interface(), Id(), instance.Callsign());
-
-            // remote->Instantiate(port, params);
         };
 
         RemoteInvocationCall(instance.RemoteAddress(), remoteCall);
@@ -593,19 +581,7 @@ namespace RPC {
 
             if (result != Core::ERROR_NONE) {
                 TRACE_L1("Error during invoke of AnnounceMessage: %d", result);
-            } /*else {
-                RPC::Data::Init& setupFrame(_announceMessage->Parameters());
-
-                if (setupFrame.IsRequested() == true) {
-                    Core::ProxyType<Core::IPCChannel> refChannel(*this);
-
-                    ASSERT(refChannel.IsValid());
-
-                    // Register the interface we are passing to the otherside:
-                    //void* object = RPC::Administrator::GetImplementation(setupFrame.InstanceId());
-                    //RPC::Administrator::Instance().RegisterInterface(refChannel, object, setupFrame.InterfaceId());
-                }
-            }*/
+            } 
         } else {
             TRACE_L1("Connection to the server is down");
         }
