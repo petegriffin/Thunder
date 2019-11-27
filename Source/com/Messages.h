@@ -3,17 +3,20 @@
 
 #include "Module.h"
 
-#define COMRPC_POINTER_LENGTH 64
-
 namespace WPEFramework {
 namespace RPC {
+    #define COMRPC_POINTER_LENGTH 32
 
-    #if COMRPC_POINTER_LENGTH == 64
-        typedef uint64_t instanceId_t;
-    #elif COMRPC_POINTER_LENGTH == 32
+    #if COMRPC_POINTER_LENGTH == 32
         typedef uint32_t instanceId_t;
-    #elif COMRPC_POINTER_LENGTH == 128 // Day of 128bit cpu shall be glourious! (or at least usefull for debugging...)
+    #elif COMRPC_POINTER_LENGTH == 64
+        typedef uint64_t instanceId_t;
+        // 128bit cpus might not be kings of the market, but this definition is usefull for debugging :)
+    #elif COMRPC_POINTER_LENGTH == 128 
         typedef __uint128_t instanceId_t; 
+    #else
+        #warning "COMRPC_POINTER_LENGTH set to unsupported value. Using 32 as default!"
+        typedef uint32_t instanceId_t;
     #endif
 
     constexpr instanceId_t EmptyInstance = 0;
