@@ -349,22 +349,19 @@ namespace RPC {
             RemoteConnection& operator=(const RemoteConnection&) = delete;
 
         protected:
-            RemoteConnection()
+            RemoteConnection(Type type)
                 : _channel()
                 , _id(_sequenceId++)
                 , _processId(0)
-                , _type(Type::Local)
+                , _type(type)
             {
             }
-<<<<<<< HEAD
-            RemoteConnection(Core::ProxyType<Core::IPCChannelType<Core::SocketPort, ChannelLink>>& channel, const uint32_t remoteId)
-=======
-            RemoteConnection(Core::ProxyType<Core::IPCChannelType<Core::SocketPort, ChannelLink>>& channel, const uint32_t processId, const uint32_t parent = 0)
->>>>>>> cc92a50... [RemoteInvocation] Demo working on rasberrypi
+
+            RemoteConnection(Core::ProxyType<Core::IPCChannelType<Core::SocketPort, ChannelLink>>& channel, const uint32_t processId, const uint32_t parent = 0, Type type = Type::Local)
                 : _channel(channel)
                 , _id(_sequenceId++)
                 , _processId(processId)
-                , _type(Type::Local)
+                , _type(type)
             {
             }
 
@@ -415,8 +412,8 @@ namespace RPC {
             Core::ProxyType<Core::IPCChannelType<Core::SocketPort, ChannelLink>> _channel;
             uint32_t _id;
             uint32_t _processId;
-            Type _type;
             static std::atomic<uint32_t> _sequenceId;
+            Type _type;
         };
         class EXTERNAL RemoteProcess : public RemoteConnection {
         private:
@@ -424,8 +421,8 @@ namespace RPC {
             RemoteProcess& operator=(const RemoteProcess&) = delete;
 
         protected:
-            RemoteProcess()
-                : RemoteConnection()
+            RemoteProcess(Type type)
+                : RemoteConnection(type)
             {
             }
 

@@ -63,6 +63,7 @@ namespace PluginHost
             , Threads(1)
             , OutOfProcess(true)
             , Mode(ModeType::LOCAL)
+            , RemoteAddress("")
             , Configuration(false)
         {
             Add(_T("locator"), &Locator);
@@ -71,6 +72,7 @@ namespace PluginHost
             Add(_T("threads"), &Threads);
             Add(_T("outofprocess"), &OutOfProcess);
             Add(_T("mode"), &Mode);
+            Add(_T("remoteaddress"), &RemoteAddress);
             Add(_T("configuration"), &Configuration);
         }
         Object(const IShell* info)
@@ -80,6 +82,7 @@ namespace PluginHost
             , Threads()
             , OutOfProcess(true)
             , Mode(ModeType::LOCAL)
+            , RemoteAddress()
             , Configuration(false)
         {
             Add(_T("locator"), &Locator);
@@ -88,6 +91,7 @@ namespace PluginHost
             Add(_T("threads"), &Threads);
             Add(_T("outofprocess"), &OutOfProcess);
             Add(_T("mode"), &Mode);
+            Add(_T("remoteaddress"), &RemoteAddress);
             Add(_T("configuration"), &Configuration);
 
             RootObject config;
@@ -111,6 +115,7 @@ namespace PluginHost
             , Threads(copy.Threads)
             , OutOfProcess(true)
             , Mode(copy.Mode)
+            , RemoteAddress(copy.RemoteAddress)
             , Configuration(copy.Configuration)
         {
             Add(_T("locator"), &Locator);
@@ -119,6 +124,7 @@ namespace PluginHost
             Add(_T("threads"), &Threads);
             Add(_T("outofprocess"), &OutOfProcess);
             Add(_T("mode"), &Mode);
+            Add(_T("remoteaddress"), &RemoteAddress);
             Add(_T("configuration"), &Configuration);
         }
         virtual ~Object()
@@ -134,6 +140,7 @@ namespace PluginHost
             Threads = RHS.Threads;
             OutOfProcess = RHS.OutOfProcess;
             Mode = RHS.Mode;
+            RemoteAddress = RHS.RemoteAddress;
             Configuration = RHS.Configuration;
 
             return (*this);
@@ -162,10 +169,11 @@ namespace PluginHost
         Core::JSON::DecUInt8 Threads;
         Core::JSON::Boolean OutOfProcess;
         Core::JSON::EnumType<ModeType> Mode; 
+        Core::JSON::String RemoteAddress;
         Core::JSON::String Configuration; 
     };
 
-    void* IShell::Root(uint32_t & pid, const uint32_t waitTime, const string className, const uint32_t interface, const uint32_t version, const string remoteAddress)
+    void* IShell::Root(uint32_t & pid, const uint32_t waitTime, const string className, const uint32_t interface, const uint32_t version)
     {
         void* result = nullptr;
         Object rootObject(this);
@@ -207,15 +215,6 @@ namespace PluginHost
                     locator = Locator();
                 }
 
-                RPC::Object::HostType hostType;
-
-                // Decide if plugin will be instantiaded on local or remote machine
-                if (remoteAddress.empty() == true) {
-                    hostType = rootObject.HostType();
-                } else {
-                    hostType = RPC::Object::HostType::DISTRIBUTED;
-                }
-
                 RPC::Object definition(Callsign(), locator,
                     className,
                     interface,
@@ -225,8 +224,7 @@ namespace PluginHost
                     rootObject.Threads.Value(),
                     rootObject.Priority.Value(),
                     rootObject.HostType(), 
-                    hostType, 
-                    remoteAddress,
+                    rootObject.RemoteAddress.Value(),
                     rootObject.Configuration.Value());
 
                 result = handler->Instantiate(definition, waitTime, pid, ClassName(), Callsign());

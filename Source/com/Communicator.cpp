@@ -385,7 +385,7 @@ namespace RPC {
     }
 
     Communicator::RemoteHost::RemoteHost(const string& remoteAddress)
-        : RemoteProcess()
+        : RemoteProcess(Type::Remote)
         , _connectionId(0)
         , _remoteAddress(remoteAddress)
     {

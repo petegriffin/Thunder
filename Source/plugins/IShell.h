@@ -238,9 +238,9 @@ namespace PluginHost {
         }
 
         template <typename REQUESTEDINTERFACE>
-        REQUESTEDINTERFACE* Root(uint32_t& pid, const uint32_t waitTime, const string className, const uint32_t version = ~0, const string remoteAddress = "")
+        REQUESTEDINTERFACE* Root(uint32_t& pid, const uint32_t waitTime, const string className, const uint32_t version = ~0)
         {
-            void* baseInterface (Root(pid, waitTime, className, REQUESTEDINTERFACE::ID, version, remoteAddress));
+            void* baseInterface (Root(pid, waitTime, className, REQUESTEDINTERFACE::ID, version));
 
             if (baseInterface != nullptr) {
 
@@ -282,7 +282,7 @@ namespace PluginHost {
         }
 
     public:
-        void* Root(uint32_t& connectionId, const uint32_t waitTime, const string className, const uint32_t interface, const uint32_t version = ~0, const string remoteAddress="");
+        void* Root(uint32_t& connectionId, const uint32_t waitTime, const string className, const uint32_t interface, const uint32_t version = ~0);
     };
 } // namespace PluginHost
 
