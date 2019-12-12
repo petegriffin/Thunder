@@ -791,7 +791,14 @@ namespace Core {
 
         while (((m_State & (SocketPort::WRITE | SocketPort::SHUTDOWN | SocketPort::OPEN | SocketPort::EXCEPTION)) == SocketPort::OPEN) && (dataLeftToSend == true)) {
             if (m_SendOffset == m_SendBytes) {
-                m_SendBytes = SendData(m_SendBuffer, m_SendBufferSize);
+                uint16_t sendBufferSize = m_SendBufferSize;
+                m_syncAdmin.Unlock();
+
+                uint16_t sendBytes = SendData(m_SendBuffer, sendBufferSize);
+
+                m_syncAdmin.Lock();
+                m_SendBufferSize = sendBufferSize;
+                m_SendBytes = sendBytes;
                 m_SendOffset = 0;
                 dataLeftToSend = (m_SendOffset != m_SendBytes);
 
