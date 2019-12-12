@@ -120,7 +120,8 @@ namespace Exchange {
         ID_INPUT_PIN_NOTIFICATION,
 
 	ID_VOICEPRODUCER_PROFILE
-
+    
+    	ID_DEVICEINFO
     };
 }
 }
