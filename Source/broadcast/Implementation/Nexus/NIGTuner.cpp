@@ -16,8 +16,8 @@
 #include <nexus_video_window.h>
 #include <nxclient.h>
 #include <ts_psi.h>
-#include <nfe_platform.h>
-#include <nfe_api.h>
+#include "nig/nfe_platform.h"
+#include "nig/nfe_api.h"
 #include <thread>
 
 namespace WPEFramework {
@@ -150,6 +150,7 @@ namespace Broadcast {
             }
 
         public:
+            bool IsSupported(const ITuner::modus mode) { return (mode == ITuner::Terrestrial); }
             inline bool Joined() const { return (_rc == 0); }
             inline ITuner::DTVStandard Standard() const { return (_standard); }
             inline ITuner::annex Annex() const { return (_annex); }
@@ -649,19 +650,28 @@ namespace Broadcast {
             NFE_ERRORCODE               errCode;
             NFE_UInt32                  supportedModes;
 
+            TRACE_L1("*** DAD: Tuner::Create: Enter ***");
+
             FILE *fic = fopen("/var/tmp/flx.txt","a");
             fprintf(fic, "FLX TUNER\n ");
             fclose(fic);
 
+            TRACE_L1("*** DAD: Tuner::Create: Before call NFE_subsysInit ***");
             errCode = NFE_subsysInit(NULL);
             fprintf(fic, "FLX NFE_subsysInit returns %d\n ", errCode);
+            TRACE_L1("*** DAD: Tuner::Create: After call NFE_subsysInit %d***", errCode);
 
+            TRACE_L1("*** DAD: Tuner::Create: Before NFE_registerCallback ***");
             errCode = NFE_registerCallback(NFELockCallback, this);
             fprintf(fic, "FLX NFE_registerCallback returns %d\n ", errCode);
+            TRACE_L1("*** DAD: Tuner::Create: After call NFE_registerCallback %d***", errCode);
 
+            TRACE_L1("*** DAD: Tuner::Create: Before NFE_lookup ***");
             errCode = NFE_lookup(0, &_feHandle);
             fprintf(fic, "FLX NFE_lookup returns %d\n ", errCode);
             fclose(fic);
+
+            TRACE_L1("*** DAD: Tuner::Create: After call NFE_lookup %d***", errCode)
 
             if(errCode == NFE_RETURN_OK) {
                     NFE_getModes(_feHandle, &supportedModes);
@@ -717,6 +727,7 @@ namespace Broadcast {
         static ITuner* Create(const string& info)
         {
             Tuner* result = nullptr;
+        	TRACE_L1("*** DAD: Tuner::Create: Enter %s***", info.c_str());
 
             uint8_t index = Core::NumberType<uint8_t>(Core::TextFragment(info)).Value();
 
@@ -725,13 +736,17 @@ namespace Broadcast {
             fprintf(fic, "FLX Tuner::Create %d\n", index);
             fclose(fic);
             
+            TRACE_L1("*** DAD: Before Tuner***");
             result = new Tuner(index);
+            TRACE_L1("*** DAD: After Tuner***");
 
             if ((result != nullptr) && (result->IsValid() == false)) {
                 delete result;
                 result = nullptr;
+                TRACE_L1("*** DAD: Tuner creation issue***");
             }
 
+            TRACE_L1("*** DAD: Tuner::Create: Exit ***");
             return (result);
         }
 
@@ -768,7 +783,7 @@ namespace Broadcast {
         // identify the uniquely locked on to Tune request. ID => 0 is reserved and means not locked on to anything.
         virtual uint16_t Id() const override
         {
-            return (_state == IDLE ? 0 : _tuneParam.tune.cabIb.frequency / 1000);
+            return (_state == IDLE ? 0 : _tuneParam.tune.dvbt.frequency / 1000);
         }
 
         // Using the next method, the allocated Frontend will try to lock the channel that is found at the given parameters.
@@ -802,7 +817,8 @@ namespace Broadcast {
 
                     uint32_t value = frequency;
                     _tuneParam.mode = NFE_MODE_CABLE_INBAND_ANNEXE_B;
-                    _tuneParam.tune.cabIb.frequency   = value * 1000;
+                    _tuneParam.tune.dvbt.frequency   = value * 1000;
+#if 0
                     _tuneParam.tune.cabIb.symbolRate  = symbolRate;
                     switch (modulation) {
                     case QAM16:
@@ -833,15 +849,16 @@ namespace Broadcast {
                         _tuneParam.tune.cabIb.symbolRate  = NFE_QAM_256;
                         break;
                     }
-                    _tuneParam.tune.cabIb.spectrum    = (inversion == Auto ? NFE_SPECTRUM_AUTO : NFE_SPECTRUM_NORMAL);
-
+#endif
+                    _tuneParam.tune.dvbt.spectrum    = (inversion == Auto ? NFE_SPECTRUM_AUTO : NFE_SPECTRUM_NORMAL);
+#if 0
                     if (_tuneParam.tune.cabIb.symbolRate == 0) {
                         _tuneParam.tune.cabIb.symbolRate = J83ASymbolRateDefault; /* DVB */
                     }
-
-                    TRACE_L1("Tuning to %u MHz mode=%d sym=%d spectrumMode=%s",
-                        frequency, _tuneParam.mode, _tuneParam.tune.cabIb.symbolRate,
-                        _tuneParam.tune.cabIb.spectrum == NFE_SPECTRUM_AUTO
+#endif
+                    TRACE_L1("Tuning to %u MHz mode=%d spectrumMode=%s",
+                        frequency, _tuneParam.mode,
+                        _tuneParam.tune.dvbt.spectrum == NFE_SPECTRUM_AUTO
                             ? "Auto"
                             : "Manual");
 
@@ -884,6 +901,8 @@ namespace Broadcast {
             uint32_t result = Core::ERROR_UNAVAILABLE;
             uint32_t id = (pid << 16) | tableId;
 
+            _state.Lock();
+
             if (callback != nullptr) {
                 auto entry = _sections.emplace(std::piecewise_construct, std::forward_as_tuple(id),
                     std::forward_as_tuple());
@@ -897,9 +916,12 @@ namespace Broadcast {
                 if (index != _sections.end()) {
                     index->second.Close();
                     _sections.erase(index);
+                    result = Core::ERROR_NONE;
                 }
-                result = Core::ERROR_NONE;
             }
+
+            _state.Unlock();
+
             return (result);
         }
 
@@ -949,7 +971,7 @@ namespace Broadcast {
 
 	    if(param == NFE_EVENT_LOCKED) {
 
-                _collector.Open(_tuneParam.tune.cabIb.frequency / 1000);
+                _collector.Open(_tuneParam.tune.dvbt.frequency / 1000);
 
             } else if (param == NFE_EVENT_ACQ_FAILED) {
                 TRACE_L1("No signal on the tuned frequency!! %d", __LINE__);
@@ -975,7 +997,7 @@ namespace Broadcast {
             _state.Lock();
 
             if ((_state == LOCKED) || (_state == PREPARED)) {
-                uint16_t identifier = _tuneParam.tune.cabIb.frequency / 1000;
+                uint16_t identifier = _tuneParam.tune.dvbt.frequency / 1000;
 
                 bool updated((_psiLoaded == NONE) && (ProgramTable::Instance().NITPid(identifier) != static_cast<uint16_t>(~0)));
 
@@ -1079,7 +1101,6 @@ namespace Broadcast {
         }
         static NFE_Void NFELockCallback(NFE_Handle handleFE, NFE_Event event, NFE_AsyncID asyncID, NFE_Void *user) {
    	    TRACE_L1("Event Recived = %d\n", event);
-            int32_t param = (int32_t)event;
 
             reinterpret_cast<Tuner*>(user)->LockCallback(event);
             if(event == NFE_EVENT_LOCKED) {
@@ -1088,9 +1109,10 @@ namespace Broadcast {
             }
        }
        static void ThreadCallback(NFE_Void *user) {
-            NFE_Diagnostics  nfeDiag;
+/*
+    	   NFE_Diagnostics  nfeDiag;
 
-	/*    if(NFE_getDiagnostics(_feHandle, &nfeDiag) != NFE_RETURN_OK)
+			if(NFE_getDiagnostics(_feHandle, &nfeDiag) != NFE_RETURN_OK)
             {
                TRACE_L1("Error: NFE_getDiagnostics failure\n");
             }
@@ -1099,14 +1121,15 @@ namespace Broadcast {
                TRACE_L1("Carrier FOUND : Offset Freq = %u KHz\n"
                            , nfeStatus.status.cabIb.demodOffset / 1000);
                reinterpret_cast<Tuner*>(user)->StatusCallback(0);
-            }*/
+            }
+*/
            reinterpret_cast<Tuner*>(user)->StatusCallback(0);
        }
 
     private:
         uint8_t _index;
         Core::StateTrigger<state> _state;
-        NFE_Handle                  _feHandle;
+        NFE_Handle _feHandle;
         uint64_t _lockDuration;
         NEXUS_ParserBand _parserBand;
         NEXUS_SimpleStcChannelHandle _stcChannel;
@@ -1147,6 +1170,13 @@ namespace Broadcast {
     {
         Tuner::NexusInformation::Instance().Deinitialize();
         return (Core::ERROR_NONE);
+    }
+
+    // See if the tuner supports the requested mode, or is configured for the requested mode. This method
+    // only returns proper values if the Initialize has been called before.
+    /* static */ bool ITuner::IsSupported(const ITuner::modus mode)
+    {
+        return (Tuner::NexusInformation::Instance().IsSupported(mode));
     }
 
     // Accessor to create a tuner.
