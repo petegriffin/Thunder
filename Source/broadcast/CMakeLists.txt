@@ -38,13 +38,15 @@ target_link_libraries(${TARGET}
 if(NXCLIENT_FOUND)
     find_package(NEXUS REQUIRED)
 
-     target_sources(${TARGET} PRIVATE Implementation/Nexus/Tuner.cpp)
+     target_sources(${TARGET} PRIVATE Implementation/Nexus/NIGTuner.cpp)
 
      target_link_libraries(${TARGET}
         PRIVATE
             NEXUS::NEXUS
             NXCLIENT::NXCLIENT
+            nig
         )
+     
 else()
     target_sources(${TARGET} PRIVATE Implementation/V4L/Tuner.cpp)
 endif()
