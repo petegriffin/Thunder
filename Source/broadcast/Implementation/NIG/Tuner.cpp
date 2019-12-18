@@ -16,8 +16,8 @@
 #include <nexus_video_window.h>
 #include <nxclient.h>
 #include <ts_psi.h>
-#include "nig/nfe_platform.h"
-#include "nig/nfe_api.h"
+#include "nfe_platform.h"
+#include "nfe_api.h"
 #include <thread>
 
 namespace WPEFramework {

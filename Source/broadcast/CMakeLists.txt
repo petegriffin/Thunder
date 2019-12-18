@@ -1,6 +1,7 @@
 set(TARGET ${NAMESPACE}Broadcast)
 
 find_package(NXCLIENT QUIET)
+find_package(NIG QUIET)
 
 add_library(${TARGET} SHARED 
         ProgramTable.cpp
@@ -34,18 +35,34 @@ target_link_libraries(${TARGET}
           ${NAMESPACE}Core::${NAMESPACE}Core
         )
 
-
 if(NXCLIENT_FOUND)
     find_package(NEXUS REQUIRED)
 
-     target_sources(${TARGET} PRIVATE Implementation/Nexus/NIGTuner.cpp)
+	if(LIBNIG_FOUND)
+	     target_sources(${TARGET}
+	     	PRIVATE
+	     		Implementation/NIG/Tuner.cpp)
 
-     target_link_libraries(${TARGET}
-        PRIVATE
-            NEXUS::NEXUS
-            NXCLIENT::NXCLIENT
-            nig
-        )
+	 	target_include_directories(${TARGET}
+	 		PRIVATE
+	 		 	${LIBNIG_INCLUDES}
+	 	)
+
+	     target_link_libraries(${TARGET}
+	        PRIVATE
+	            NEXUS::NEXUS
+	            NXCLIENT::NXCLIENT
+				${LIBNIG_LIBRARIES}
+		 )
+	else()
+	    target_sources(${TARGET} PRIVATE Implementation/Nexus/Tuner.cpp)
+	    
+	    target_link_libraries(${TARGET}
+	       PRIVATE
+	           NEXUS::NEXUS
+	           NXCLIENT::NXCLIENT
+	       )
+	endif()
      
 else()
     target_sources(${TARGET} PRIVATE Implementation/V4L/Tuner.cpp)
