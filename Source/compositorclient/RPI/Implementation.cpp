@@ -276,6 +276,11 @@ public:
     Display(const std::string& displayName);
     virtual ~Display();
 
+    bool IsInitialized()
+    {
+        return _initialized;
+    }
+
     virtual void AddRef() const
     {
         if (Core::InterlockedIncrement(_refCount) == 1) {
@@ -376,6 +381,7 @@ private:
             g_pipefd[0] = -1;
             g_pipefd[1] = -1;
         }
+        _initialized = true;
         _adminLock.Unlock();
     }
 
@@ -408,6 +414,7 @@ private:
             _compositerServerRPCConnection.Release();
         }
 
+        _initialized = false;
         _adminLock.Unlock();
     }
 
@@ -425,6 +432,7 @@ private:
     uint16_t _touch_state;
 
     mutable uint32_t _refCount;
+    bool _initialized;
 };
 
 Display::SurfaceImplementation::SurfaceImplementation(
@@ -555,6 +563,7 @@ Display::Display(const string& name)
     , _touch_y(-1)
     , _touch_state(0)
     , _refCount(0)
+    , _initialized(false)
 {
 }
 
@@ -635,7 +644,6 @@ inline void Display::Register(Display::SurfaceImplementation* surface)
     ASSERT(surface != nullptr);
 
     _adminLock.Lock();
-
     std::list<SurfaceImplementation*>::iterator index(
         std::find(_surfaces.begin(), _surfaces.end(), surface));
     if (index == _surfaces.end()) {
@@ -705,7 +713,9 @@ Compositor::IDisplay* Compositor::IDisplay::Instance(const string& displayName)
 {
     static BCMHostInit bcmhostinit; // must be done before Display constructor
     static RPI::Display& myDisplay = Core::SingletonType<RPI::Display>::Instance(displayName);
-    myDisplay.AddRef();
+    if (myDisplay.IsInitialized() != true) {
+        myDisplay.AddRef();
+    }
 
     return (&myDisplay);
 }
