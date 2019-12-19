@@ -279,7 +279,7 @@ namespace RPC {
 
     /* virtual */ Communicator::RemoteConnection::Type Communicator::RemoteConnection::ConnectionType() const
     {
-        return _type;
+        return Local;
     }
 
     /* virtual */ uint32_t Communicator::RemoteConnection::ProcessId() const
@@ -331,13 +331,6 @@ namespace RPC {
 
 #endif
 
-    Communicator::RemoteHost::RemoteHost(const string& remoteNode)
-        : RemoteProcess()
-        , _pid(0)
-        , _remoteNode(remoteNode)
-    {
-    }
-
 #ifdef __WINDOWS__
 #pragma warning(disable : 4355)
 #endif
@@ -384,8 +377,8 @@ namespace RPC {
         }
     }
 
-    Communicator::RemoteHost::RemoteHost(const string& remoteAddress)
-        : RemoteProcess(Type::Remote)
+    Communicator::RemoteHost::RemoteHost(const string& callsign, const string& remoteAddress)
+        : MonitorableRemoteProcess(callsign)
         , _connectionId(0)
         , _remoteAddress(remoteAddress)
     {

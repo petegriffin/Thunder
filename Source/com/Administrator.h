@@ -229,6 +229,7 @@ namespace RPC {
 
             static_assert(sizeof(result.pointer) <= sizeof(result.instanceId), "System address-size must be smaller or equal to COMRPC_POINTER_LENGTH");
 
+            result.instanceId = 0;
             result.pointer = object;
 
             return result.instanceId;             

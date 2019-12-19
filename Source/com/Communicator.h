@@ -349,19 +349,16 @@ namespace RPC {
             RemoteConnection& operator=(const RemoteConnection&) = delete;
 
         protected:
-            RemoteConnection(Type type)
+            RemoteConnection()
                 : _channel()
                 , _id(_sequenceId++)
                 , _processId(0)
-                , _type(type)
             {
             }
-
-            RemoteConnection(Core::ProxyType<Core::IPCChannelType<Core::SocketPort, ChannelLink>>& channel, const uint32_t processId, const uint32_t parent = 0, Type type = Type::Local)
+            RemoteConnection(Core::ProxyType<Core::IPCChannelType<Core::SocketPort, ChannelLink>>& channel, const uint32_t processId, const uint32_t parent = 0)
                 : _channel(channel)
                 , _id(_sequenceId++)
                 , _processId(processId)
-                , _type(type)
             {
             }
 
@@ -413,7 +410,6 @@ namespace RPC {
             uint32_t _id;
             uint32_t _processId;
             static std::atomic<uint32_t> _sequenceId;
-            Type _type;
         };
         class EXTERNAL RemoteProcess : public RemoteConnection {
         private:
@@ -421,8 +417,8 @@ namespace RPC {
             RemoteProcess& operator=(const RemoteProcess&) = delete;
 
         protected:
-            RemoteProcess(Type type)
-                : RemoteConnection(type)
+            RemoteProcess()
+                : RemoteConnection()
             {
             }
 
@@ -540,6 +536,10 @@ namespace RPC {
                 }
             }
 
+            Type ConnectionType() const override {
+                return Type::Local;
+            }
+
             void Terminate() override;
             uint32_t ProcessId() const override;
 
@@ -646,6 +646,10 @@ namespace RPC {
             }
 
         public:
+            Type ConnectionType() const override {
+                return Type::Local;
+            }
+
             void Terminate() override;
 
             uint32_t RemoteId() const override
@@ -658,7 +662,7 @@ namespace RPC {
         };
 
 #endif
-        class EXTERNAL RemoteHost : public RemoteProcess {
+        class EXTERNAL RemoteHost : public MonitorableRemoteProcess {
         private:
             friend class Core::Service<RemoteHost>;
 
@@ -666,9 +670,11 @@ namespace RPC {
             RemoteHost& operator=(const RemoteHost&) = delete;
 
         public:
-            RemoteHost(const string& remoteAddress);
+            RemoteHost(const string& callsign, const string& remoteAddress);
 
         public:
+            Type ConnectionType() const override {return Type::Remote;}
+
             virtual ~RemoteHost()
             {
                 TRACE_L1("Destructor for RemoteHost process for %d", Id());
@@ -693,7 +699,7 @@ namespace RPC {
                 result = Core::Service<LocalRemoteProcess>::Create<RemoteProcess>(instance.Callsign());
                 break;
             case Object::HostType::DISTRIBUTED:
-                result = Core::Service<RemoteHost>::Create<RemoteProcess>(instance.RemoteAddress());
+                result = Core::Service<RemoteHost>::Create<RemoteProcess>(instance.Callsign(), instance.RemoteAddress());
                 break;
             case Object::HostType::CONTAINER:
 #ifdef PROCESSCONTAINERS_ENABLED

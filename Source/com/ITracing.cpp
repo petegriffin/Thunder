@@ -121,9 +121,11 @@ namespace ProxyStub {
         //
         [](Core::ProxyType<Core::IPCChannel>& channel VARIABLE_IS_NOT_USED, Core::ProxyType<RPC::InvokeMessage>& message) {
             RPC::Data::Input& input(message->Parameters());
+            
 
             // call implementation
-            const RPC::IRemoteConnection::IProcess* implementation = input.Implementation<RPC::IRemoteConnection::IProcess>();
+            const RPC::IRemoteConnection::IProcess* implementation = RPC::Administrator::GetImplementation<RPC::IRemoteConnection::IProcess>(input.InstanceId());
+
             ASSERT((implementation != nullptr) && "Null RPC::IRemoteConnection::IProcess implementation pointer");
             const string output = implementation->Callsign();
 
@@ -235,7 +237,7 @@ namespace ProxyStub {
         }
         virtual IRemoteConnection::Type ConnectionType() const
         {
-            IRemoteConnection::Type type;
+            IRemoteConnection::Type type = Local;
 
             IPCMessage newMessage(BaseClass::Message(4));
 
@@ -247,7 +249,7 @@ namespace ProxyStub {
         }
         virtual uint32_t ProcessId() const
         {
-            uint32_t pid;
+            uint32_t pid = 0;
 
             IPCMessage newMessage(BaseClass::Message(5));
 
@@ -326,8 +328,8 @@ namespace ProxyStub {
 
     class ProcessProxy final : public ProxyStub::UnknownProxyType<RPC::IRemoteConnection::IProcess> {
     public:
-        ProcessProxy(const Core::ProxyType<Core::IPCChannel>& channel, void* implementation, const bool otherSideInformed)
-            : BaseClass(channel, implementation, otherSideInformed)
+        ProcessProxy(const Core::ProxyType<Core::IPCChannel>& channel, RPC::instanceId_t instanceId, const bool otherSideInformed)
+            : BaseClass(channel, instanceId, otherSideInformed)
         {
         }
 
