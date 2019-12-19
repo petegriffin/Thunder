@@ -352,11 +352,15 @@ namespace Core {
             }
             virtual void StateChange()
             {
-                SOCKET newClient;
-                NodeId remoteId;
+                if ((SocketPort::State() & SocketPort::ACCEPT) != 0) {
+                    SOCKET newClient;
+                    NodeId remoteId;
 
-                while ((newClient = SocketPort::Accept(remoteId)) != INVALID_SOCKET) {
-                    _parent.Accept(newClient, remoteId);
+                    while ((newClient = SocketPort::Accept(remoteId)) != INVALID_SOCKET) {
+                        _parent.Accept(newClient, remoteId);
+                    }
+                } else if ((SocketPort::State() & SHUTDOWN) != 0) {
+                    _parent.Remove();
                 }
             }
 
@@ -422,6 +426,9 @@ namespace Core {
         }
 
         virtual void Accept(SOCKET& newClient, const NodeId& remoteId) = 0;
+        virtual void Remove()
+        {
+        }
 
     protected:
         inline void LocalNode(const Core::NodeId& localNode)

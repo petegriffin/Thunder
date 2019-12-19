@@ -485,6 +485,12 @@ namespace Core {
 
             _adminLock.Unlock();
         }
+        virtual void Remove() override
+        {
+            _adminLock.Lock();
+            InternalCleanup();
+            _adminLock.Unlock();
+        }
         uint32_t CallRecursive(typename ClientMap::iterator& index, ProxyType<IIPC>& command, const uint32_t waitTime)
         {
             uint32_t result = Core::ERROR_NONE;

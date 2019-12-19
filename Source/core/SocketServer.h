@@ -248,10 +248,10 @@ namespace Core {
                     _lock.Unlock();
                 }
             }
-			void Lock() 
-			{
+            void Lock()
+            {
                 _lock.Lock();
-			}
+            }
             void Unlock()
             {
                 _lock.Unlock();
