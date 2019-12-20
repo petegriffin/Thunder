@@ -1128,10 +1128,10 @@ namespace Wayland {
         if (index == _displays.end()) {
             result = new Display(displayName);
             _displays.insert(std::pair<const std::string, Display*>(displayName, result));
+            result->AddRef();
         } else {
             result = index->second;
         }
-        result->AddRef();
         _adminLock.Unlock();
 
         assert(result != nullptr);
@@ -1209,6 +1209,7 @@ namespace Wayland {
         if (Core::InterlockedDecrement(_refCount) == 0) {
             const_cast<Display*>(this)->Deinitialize();
 
+            delete this;
             //Indicate Wayland connection is closed properly
             return (Core::ERROR_CONNECTION_CLOSED);
         }
