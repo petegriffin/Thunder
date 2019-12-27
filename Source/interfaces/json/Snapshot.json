@@ -1,0 +1,51 @@
+{
+  "$schema": "interface.schema.json",
+  "jsonrpc": "2.0",
+  "info": {
+    "title": "Snapshot API",
+    "class": "Snapshot",
+    "description": "Snapshot JSON-RPC interface"
+  },
+  "common": {
+    "$ref": "common.json"
+  },
+  "methods": {
+    "Snapshot.1.capture": {
+      "summary": "Takes a screen capture",
+      "description": "With this method a screen capture can be dumped to a PNG image file.",
+      "result": {
+        "type": "object",
+        "properties": {
+          "image": {
+            "description": "Image file in PNG format (base64 encoded)",
+            "type": "array",
+            "example": "<base64-encoded-png-file>",
+            "items": {
+              "type" : "number",
+              "size": 8
+            }
+          },
+          "device": {
+            "description": "Display device on which the capture was performed on",
+            "type": "string",
+            "example": "nexus"
+          }
+        },
+        "required": [
+          "image",
+          "device"
+        ]
+      },
+      "errors": [
+        {
+          "description": "Failed to perform the screen capture",
+          "$ref": "#/common/errors/unavailable"
+        },
+        {
+          "description": "Capture already in progress",
+          "$ref": "#/common/errors/inprogress"
+        }
+      ]
+    }
+  }
+}
