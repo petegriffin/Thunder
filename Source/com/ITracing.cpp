@@ -10,15 +10,6 @@ namespace ProxyStub {
     // -------------------------------------------------------------------------------------------
     ProxyStub::MethodHandler RemoteConnectionStubMethods[] = {
         [](Core::ProxyType<Core::IPCChannel>& channel VARIABLE_IS_NOT_USED, Core::ProxyType<RPC::InvokeMessage>& message) {
-<<<<<<< HEAD
-=======
-            // virtual uint32_t Parent() const = 0;
-            RPC::Data::Frame::Writer response(message->Response().Writer());
-
-            response.Number<uint32_t>(RPC::Administrator::GetImplementation<RPC::IRemoteConnection>(message->Parameters().InstanceId())->Parent());
-        },
-        [](Core::ProxyType<Core::IPCChannel>& channel VARIABLE_IS_NOT_USED, Core::ProxyType<RPC::InvokeMessage>& message) {
->>>>>>> 56d4012... [RemoteInvocation] 64 bit machines now can work with 32 bit
             // virtual uint32_t Id() const = 0;
             RPC::Data::Frame::Writer response(message->Response().Writer());
 
@@ -227,7 +218,7 @@ namespace ProxyStub {
         {
             string source = 0;
 
-            IPCMessage newMessage(BaseClass::Message(3));
+            IPCMessage newMessage(BaseClass::Message(2));
 
             if (Invoke(newMessage) == Core::ERROR_NONE) {
                 source = newMessage->Response().Reader().Text();
@@ -239,7 +230,7 @@ namespace ProxyStub {
         {
             IRemoteConnection::Type type = Local;
 
-            IPCMessage newMessage(BaseClass::Message(4));
+            IPCMessage newMessage(BaseClass::Message(3));
 
             if (Invoke(newMessage) == Core::ERROR_NONE) {
                 type = newMessage->Response().Reader().Number<IRemoteConnection::Type>();
@@ -251,7 +242,7 @@ namespace ProxyStub {
         {
             uint32_t pid = 0;
 
-            IPCMessage newMessage(BaseClass::Message(5));
+            IPCMessage newMessage(BaseClass::Message(4));
 
             if (Invoke(newMessage) == Core::ERROR_NONE) {
                 pid = newMessage->Response().Reader().Number<uint32_t>();
@@ -262,7 +253,7 @@ namespace ProxyStub {
         virtual void* Aquire(const uint32_t waitTime, const string& className, const uint32_t interfaceId, const uint32_t version)
         {
             void* result = nullptr;
-            IPCMessage newMessage(BaseClass::Message(6));
+            IPCMessage newMessage(BaseClass::Message(5));
             RPC::Data::Frame::Writer writer(newMessage->Parameters().Writer());
 
             writer.Number(waitTime);
@@ -277,11 +268,7 @@ namespace ProxyStub {
         }
         virtual void Terminate()
         {
-<<<<<<< HEAD
-            IPCMessage newMessage(BaseClass::Message(3));
-=======
-            IPCMessage newMessage(BaseClass::Message(7));
->>>>>>> cc92a50... [RemoteInvocation] Demo working on rasberrypi
+            IPCMessage newMessage(BaseClass::Message(6));
 
             Invoke(newMessage);
         }

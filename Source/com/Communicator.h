@@ -355,7 +355,7 @@ namespace RPC {
                 , _processId(0)
             {
             }
-            RemoteConnection(Core::ProxyType<Core::IPCChannelType<Core::SocketPort, ChannelLink>>& channel, const uint32_t processId, const uint32_t parent = 0)
+            RemoteConnection(Core::ProxyType<Core::IPCChannelType<Core::SocketPort, ChannelLink>>& channel, const uint32_t processId)
                 : _channel(channel)
                 , _id(_sequenceId++)
                 , _processId(processId)
@@ -662,6 +662,7 @@ namespace RPC {
         };
 
 #endif
+#ifdef REMOTEINVOCATION_ENABLED
         class EXTERNAL RemoteHost : public MonitorableRemoteProcess {
         private:
             friend class Core::Service<RemoteHost>;
@@ -689,6 +690,7 @@ namespace RPC {
             uint32_t _connectionId;
             string _remoteAddress;
         };
+#endif
 
         static RemoteProcess* CreateProcess(const Object& instance, const Config& config)
         {
@@ -699,7 +701,11 @@ namespace RPC {
                 result = Core::Service<LocalRemoteProcess>::Create<RemoteProcess>(instance.Callsign());
                 break;
             case Object::HostType::DISTRIBUTED:
+#ifdef REMOTEINVOCATION_ENABLED
                 result = Core::Service<RemoteHost>::Create<RemoteProcess>(instance.Callsign(), instance.RemoteAddress());
+#else
+                SYSLOG(Trace::Error, (_T("Cannot create distributed process for %s, this version was not build with remoteinvocation support"), instance.ClassName().c_str()));
+#endif
                 break;
             case Object::HostType::CONTAINER:
 #ifdef PROCESSCONTAINERS_ENABLED

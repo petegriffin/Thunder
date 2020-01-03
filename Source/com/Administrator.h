@@ -15,7 +15,13 @@ namespace ProxyStub {
 namespace RPC {
 
 #ifdef __DEBUG__
-    enum { CommunicationTimeOut = 2000 }; // Time in ms. Forever
+
+#ifdef REMOTEINVOCATION_ENABLED
+    enum { CommunicationTimeOut = 5000 }; // Time in ms. 5 seconds
+#else 
+    enum { CommunicationTimeOut = Core::infinite }; // Time in ms. Forever
+#endif // REMOTEINVOCATION_ENABLED
+
 #else
     enum { CommunicationTimeOut = 10000 }; // Time in ms. 10 Seconden
 #endif
@@ -201,17 +207,12 @@ namespace RPC {
 
         // instanceId <---> Memory address converison
         static inline void* GetImplementation(instanceId_t instanceID) {
-            union
-            {       
-                void* pointer;
-                instanceId_t instanceId;
-            } result;
+            static_assert(sizeof(void*) <= sizeof(instanceId_t), "System address-size must be smaller or equal to COMRPC_POINTER_LENGTH");
 
-            static_assert(sizeof(result.pointer) <= sizeof(result.instanceId), "System address-size must be smaller or equal to COMRPC_POINTER_LENGTH");
+            // Always assume that first bytes are used to store address. Endianness doesn't matter
+            void** implementation = reinterpret_cast<void**>(&instanceID);
 
-            result.instanceId = instanceID;
-
-            return result.pointer; 
+            return *implementation; 
         }
 
         template<typename TYPE>
@@ -221,18 +222,15 @@ namespace RPC {
         }
 
         static inline instanceId_t GetInstanceId(const void* object) {
-            union
-            {       
-                const void* pointer;
-                instanceId_t instanceId;
-            } result;
+            static_assert(sizeof(void*) <= sizeof(instanceId_t), "System address-size must be smaller or equal to COMRPC_POINTER_LENGTH");
 
-            static_assert(sizeof(result.pointer) <= sizeof(result.instanceId), "System address-size must be smaller or equal to COMRPC_POINTER_LENGTH");
+            instanceId_t instanceId = 0;
 
-            result.instanceId = 0;
-            result.pointer = object;
+            // Assign object address to the first bytes of instanceId
+            void** implementation = reinterpret_cast<void**>(&instanceId);
+            *implementation = const_cast<void*>(object);
 
-            return result.instanceId;             
+            return instanceId;             
         }
     private:
         Core::IUnknown* Convert(void* rawImplementation, const uint32_t id);

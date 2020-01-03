@@ -334,6 +334,8 @@ namespace RPC {
 #ifdef __WINDOWS__
 #pragma warning(disable : 4355)
 #endif
+
+#ifdef REMOTEINVOCATION_ENABLED
     class DirectIPCServer : public Core::IIPCServer {
     public: 
         void Procedure(Core::IPCChannel& source, Core::ProxyType<Core::IIPC>& message) {
@@ -423,6 +425,7 @@ namespace RPC {
         auto job = Core::ProxyType<RemoteHostTerminator>::Create(_remoteAddress, Id());
         Core::WorkerPool::Instance().Submit(Core::ProxyType<Core::IDispatch>(job));
     }
+#endif
 
     Communicator::Communicator(const Core::NodeId& node, const string& proxyStubPath)
         : _connectionMap(*this)
