@@ -1988,9 +1988,8 @@ namespace Core {
             }
 
             EnumType(const ENUMERATE Value)
-                : _state(0)
-                , _value()
-                , _default(Value)
+                : _state(SET)
+                , _value(Value)
             {
             }
 
