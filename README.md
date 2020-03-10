@@ -1,3 +1,5 @@
+# This repository has been moved to: https://github.com/rdkcentral/Thunder
+
 # Thunder
 
 A C++ platform abstraction layer for generic functionality.
