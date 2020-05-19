@@ -33,7 +33,7 @@
 find_package(PkgConfig)
 pkg_check_modules(PC_WESTON weston)
 
-find_library(WESTON_CLIENT_LIB NAMES weston-desktop-5 weston-desktop-6 weston-desktop-7 weston-desktop-8
+find_library(WESTON_CLIENT_LIB NAMES weston-desktop-8
         HINTS ${PC_WESTON_LIBDIR} ${PC_WESTON_LIBRARY_DIRS}
 )
 
