@@ -30,7 +30,7 @@ find_package(WaylandEGL REQUIRED)
 find_package(${PLUGIN_COMPOSITOR_SUB_IMPLEMENTATION}Client REQUIRED)
 find_package(NXCLIENT)
 
-add_library(${TARGET} SHARED ${PLUGIN_COMPOSITOR_SUB_IMPLEMENTATION}.cpp)
+add_library(${TARGET} SHARED ${PLUGIN_COMPOSITOR_SUB_IMPLEMENTATION}.cpp xdg-shell-protocol.c)
 
 target_link_libraries(${TARGET}
     PRIVATE
