@@ -31,7 +31,7 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 find_package(PkgConfig)
-pkg_check_modules(PC_WESTON weston-desktop-8)
+pkg_check_modules(PC_WESTON libweston-desktop-8)
 
 find_library(WESTON_CLIENT_LIB NAMES weston-desktop-8
         HINTS ${PC_WESTON_LIBDIR} ${PC_WESTON_LIBRARY_DIRS}
