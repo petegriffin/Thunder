@@ -31,7 +31,7 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 find_package(PkgConfig)
-pkg_check_modules(PC_WESTON weston)
+pkg_check_modules(PC_WESTON weston-desktop8)
 
 find_library(WESTON_CLIENT_LIB NAMES weston-desktop-8
         HINTS ${PC_WESTON_LIBDIR} ${PC_WESTON_LIBRARY_DIRS}
@@ -44,10 +44,10 @@ if(PC_WESTON_FOUND AND NOT TARGET WestonClient::WestonClient)
     add_library(WestonClient::WestonClient UNKNOWN IMPORTED)
     set_target_properties(WestonClient::WestonClient PROPERTIES
             IMPORTED_LINK_INTERFACE_LANGUAGES "C"
-            IMPORTED_LOCATION "${WESTON_CLIENT_LIB}"
-            INTERFACE_INCLUDE_DIRECTORIES ""
-            INTERFACE_COMPILE_OPTIONS "${WESTON_CLIENT_CFLAGS_OTHER}"
-            INTERFACE_LINK_LIBRARIES "${WESTON_CLIENT_LIB_CLIENT_LINK_LIBRARIES}"
+            IMPORTED_LOCATION "${PC_WESTON_LIB}"
+            INTERFACE_INCLUDE_DIRECTORIES "${PC_WESTON_INCLUDE_DIRS"
+            INTERFACE_COMPILE_OPTIONS "${PC_WESTON_DEFINITIONS}"
+            INTERFACE_LINK_LIBRARIES "${PC_WESTON_LIBRARIES}"
             )
 endif()
 
