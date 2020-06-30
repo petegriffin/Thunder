@@ -39,7 +39,7 @@ find_library(WESTON_CLIENT_LIB NAMES weston-desktop-8
 
 set (WESTON_CLIENT_LIBRARIES ${PC_WESTON_LIBRARIES})
 
-if(PC_WESTON_FOUND AND NOT TARGET WestonClient::WestonClient)
+if(WESTON_CLIENT_LIB_FOUND AND NOT TARGET WestonClient::WestonClient)
     set(WESTON_CLIENT_LIB_CLIENT_LINK_LIBRARIES "${WESTON_CLIENT_LIB}")
     add_library(WestonClient::WestonClient UNKNOWN IMPORTED)
     set_target_properties(WestonClient::WestonClient PROPERTIES
