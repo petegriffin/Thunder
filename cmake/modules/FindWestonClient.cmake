@@ -41,7 +41,7 @@ if(PC_WESTON_FOUND AND NOT TARGET WestonClient::WestonClient)
     add_library(WestonClient::WestonClient UNKNOWN IMPORTED)
     set_target_properties(WestonClient::WestonClient PROPERTIES
             IMPORTED_LINK_INTERFACE_LANGUAGES "C"
-            IMPORTED_LOCATION "${PC_WESTON_LIB}"
+            IMPORTED_LOCATION "${WESTON_CLIENT_LIB}"
             INTERFACE_INCLUDE_DIRECTORIES ""
             INTERFACE_COMPILE_OPTIONS "${PC_WESTON_DEFINITIONS}"
             INTERFACE_LINK_LIBRARIES "${PC_WESTON_LIBRARIES}"
