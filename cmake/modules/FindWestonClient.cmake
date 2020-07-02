@@ -51,4 +51,4 @@ endif()
 include(FindPackageHandleStandardArgs)
 FIND_PACKAGE_HANDLE_STANDARD_ARGS(PC_WESTON DEFAULT_MSG PC_WESTON_FOUND)
 
-mark_as_advanced(WESTON_EGL_LIBRARIES)
+mark_as_advanced(PC_WESTON_LIBRARIES)
