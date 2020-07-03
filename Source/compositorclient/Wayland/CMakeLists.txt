@@ -48,6 +48,13 @@ set_target_properties(${TARGET} PROPERTIES
         SOVERSION ${VERSION_MAJOR}
 )
 
+if ("${PLUGIN_COMPOSITOR_SUB_IMPLEMENTATION}" STREQUAL "Weston")
+set_target_properties(${TARGET} PROPERTIES
+	LINK_WHAT_YOU_USE TRUE
+)
+endif ()
+
+
 if (NXCLIENT_FOUND)
     target_link_libraries(${TARGET}
         PRIVATE
